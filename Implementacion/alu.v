@@ -1,5 +1,3 @@
-// Unidad Aritmético-Lógica para operaciones en punto flotante IEEE-754
-// Soporta formatos de 32 bits (single precision) y 16 bits (half precision)
 module alu(
     input clk,
     input rst,

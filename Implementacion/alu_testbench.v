@@ -40,24 +40,32 @@ module alu_testbench;
     
     // Valores de prueba IEEE-754
     // Single precision
-    localparam SP_POS_ONE    = 32'h3F800000; // +1.0
-    localparam SP_POS_ONE_FIVE    = 32'h3FC00000; // +1.5
-    localparam SP_NEG_ONE    = 32'hBF800000; // -1.0
+    // Pos
+    localparam SP_POS_ZERO       = 32'h00000000; // +0.0
+    localparam SP_POS_ONE       = 32'h3F800000; // +1.0
+    localparam SP_POS_ONE_FIVE  = 32'h3FC00000; // +1.5
     localparam SP_POS_TWO    = 32'h40000000; // +2.0
+    localparam SP_POS_THREE   = 32'h40400000; // +3.0
     localparam SP_POS_HALF   = 32'h3F000000; // +0.5
-    localparam SP_POS_ZERO   = 32'h00000000; // +0.0
-    localparam SP_NEG_ZERO   = 32'h80000000; // -0.0
+    localparam SP_POS_NINETY_NINE = 32'h42C7FAE1; // +99.99
     localparam SP_POS_INF    = 32'h7F800000; // +Inf
+    localparam SP_POS_MIN_DENORM = 32'h00000001; // +Denorm
+    localparam SP_POS_MAX_DENORM = 32'h007FFFFF; // +Denorm
+
+    // Neg
+    localparam SP_NEG_ZERO       = 32'h80000000; // -0.0
+    localparam SP_NEG_ONE    = 32'hBF800000; // -1.0
+    localparam SP_NEG_TWO    = 32'hC0000000; // -2.0
+    localparam SP_NEG_THREE  = 32'hC0400000; // -3.0
     localparam SP_NEG_INF    = 32'hFF800000; // -Inf
-    localparam SP_QNAN       = 32'h7FC00000; // Quiet NaN
+    localparam SP_NEG_MIN_DENORM = 32'h80000001; // -Denorm
+    // localparam SP_NEG_MAX_DENORM = 32'h807FFFFF; // -Denorm
     
-    // Half precision (en los 16 bits superiores)
-    localparam HP_POS_ONE    = 32'h3C000000; // +1.0 en half precision
-    localparam HP_POS_TWO    = 32'h40000000; // +2.0 en half precision
-    localparam HP_POS_HALF   = 32'h38000000; // +0.5 en half precision
-    localparam HP_POS_INF    = 32'h7C000000; // +Inf en half precision
-    localparam HP_QNAN       = 32'h7E000000; // Quiet NaN en half precision
+    // localparam SP_POS_ZERO   = 32'h00000000; // +0.0
+    // localparam SP_NEG_ZERO   = 32'h80000000; // -0.0
+    // localparam SP_QNAN       = 32'h7FC00000; // Quiet NaN
     
+
     // Tareas auxiliares
     task reset_system;
         begin
@@ -118,12 +126,22 @@ module alu_testbench;
         $display("\n=== PRUEBAS EN SINGLE PRECISION (32 bits) ===");
         
         // Pruebas de suma
-        test_operation(SP_POS_ONE_FIVE, SP_POS_ONE_FIVE, 3'b000, 1'b1, "ADD: 1.5 + 1.5 = 3.0");
+        // test_operation(SP_POS_NINETY_NINE, SP_POS_HALF, 3'b000, 1'b1, "ADD: 99.99 + 0.5 = 100.49");
+        // test_operation(SP_POS_INF, SP_POS_INF, 3'b000, 1'b1, "ADD: +Inf + +Inf = +Inf");
+        // test_operation(SP_POS_INF, SP_NEG_INF, 3'b000, 1'b1, "ADD: +Inf + -Inf = NaN");
+        test_operation(SP_POS_MIN_DENORM, SP_POS_MIN_DENORM, 3'b000, 1'b1, "ADD: +Inf + -Inf = NaN");
+        // test_operation(SP_POS_THREE, SP_POS_TWO, 3'b001, 1'b1, "SUB: 3.0 - 2.0 = 1.0");
+        // test_operation(SP_NEG_TWO, SP_POS_ONE, 3'b000, 1'b1, "SUB: 2.0 - 1.0 = 1.0");
+
+        // Resta
+
+        // test_operation(SP_NEG_INF, SP_POS_INF, 3'b001, 1'b1, "SUB: -Inf - -Inf = NaN");
+        // test_operation(SP_POS_TWO, SP_POS_HALF, 3'b001, 1'b1, "SUB: 2.0 - 0.5 = 1.5");
 
 
         // $display("\n=== PRUEBAS EN HALF PRECISION (16 bits) ===");
 
-        // // Pruebas de suma
+        // Pruebas de suma
         // test_operation(HP_POS_ONE, HP_POS_ONE, 3'b000, 1'b0, "ADD: 1.0 + 1.0 = 2.0");
 
         $display("\n=== Testbench completado ===");

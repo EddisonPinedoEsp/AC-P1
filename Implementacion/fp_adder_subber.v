@@ -60,8 +60,8 @@ module fp_adder_subber(
     // Realizar suma o resta
     wire [25:0] larger_extended = {larger_mant, 2'b0};
     assign sum_result = effective_sub ? 
-                       (larger_extended - aligned_smaller_mant) :
-                       (larger_extended + aligned_smaller_mant);
+                    (larger_extended - aligned_smaller_mant) :
+                    (larger_extended + aligned_smaller_mant);
 
     // Función para contar ceros a la izquierda  
     function [4:0] count_leading_zeros;
@@ -103,7 +103,11 @@ module fp_adder_subber(
             result_exp = larger_exp;
             result_mant = sum_result[24:2];
             inexact = (sum_result[1:0] != 2'b0);
-            
+        end else if (sum_result[24]) begin
+            // Bit 24 activo - necesita shift left de 1
+            result_exp = larger_exp - 1;
+            result_mant = sum_result[23:1];
+            inexact = sum_result[0];
         end else begin
             // Necesita normalización a la izquierda
             if (leading_zeros > larger_exp) begin
@@ -115,7 +119,6 @@ module fp_adder_subber(
                 result_exp = larger_exp - leading_zeros;
                 // Normalización manual
                 case (leading_zeros)
-                    5'd0: result_mant = sum_result[24:2];
                     5'd1: result_mant = sum_result[23:1];
                     5'd2: result_mant = sum_result[22:0];
                     5'd3: result_mant = {sum_result[21:0], 1'b0};
@@ -126,6 +129,7 @@ module fp_adder_subber(
                     5'd8: result_mant = {sum_result[16:0], 6'b0};
                     5'd9: result_mant = {sum_result[15:0], 7'b0};
                     5'd10: result_mant = {sum_result[14:0], 8'b0};
+                    5'd11: result_mant = {sum_result[13:0], 9'b0};
                     default: result_mant = 23'b0;
                 endcase
             end
