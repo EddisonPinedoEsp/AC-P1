@@ -31,77 +31,78 @@ module fp_multiplier(
     localparam SP_EXP_MAX = 8'hFF;
     localparam HP_EXP_MAX = 5'h1F;
 
+    // Pipeline de 2 ciclos: Etapa 1 (producto y exponente) -> Etapa 2 (normalización y flags)
+
+    // Registros de la Etapa 1
+    reg [47:0] s1_product;
+    reg [8:0]  s1_exp_sum;
+    reg        s1_sign;
+
     always @(posedge clk) begin
         if (rst) begin
+            // Reset salida
             result_sign <= 1'b0;
             result_exp <= 8'b0;
             result_mant <= 23'b0;
             overflow <= 1'b0;
             underflow <= 1'b0;
             inexact <= 1'b0;
+
+            // Reset S1
+            mant_a_ext <= 24'b0;
+            mant_b_ext <= 24'b0;
+            s1_product <= 48'b0;
+            s1_exp_sum <= 9'b0;
+            s1_sign <= 1'b0;
         end else begin
-            // Calcular signo del resultado (XOR de los signos)
-            result_sign <= sign_a ^ sign_b;
-            
-            // Agregar bit implícito a las mantisas
+            // ===== Etapa 1 =====
             mant_a_ext <= {1'b1, mant_a};
             mant_b_ext <= {1'b1, mant_b};
-            
-            // Multiplicar mantisas
-            product <= mant_a_ext * mant_b_ext;
-            
-            // Sumar exponentes y restar bias
-            exp_sum <= exp_a + exp_b - SP_EXP_BIAS;
-            
-            // Verificar si el producto requiere normalización
-            if (product[47]) begin
-                // El producto es >= 2.0, necesita shift a la derecha
-                result_mant <= product[46:24];
-                biased_exp <= exp_sum + 1;
-                inexact <= (product[23:0] != 24'b0);
+            s1_product <= {1'b1, mant_a} * {1'b1, mant_b};
+            s1_exp_sum <= exp_a + exp_b - SP_EXP_BIAS;
+            s1_sign <= sign_a ^ sign_b;
+
+            // ===== Etapa 2 =====
+            result_sign <= s1_sign;
+            overflow <= 1'b0;
+            underflow <= 1'b0;
+
+            // Normalización del producto registrado
+            if (s1_product[47]) begin
+                result_mant <= s1_product[46:24];
+                biased_exp <= s1_exp_sum + 1;
+                inexact <= (s1_product[23:0] != 24'b0);
             end else begin
-                // El producto es < 2.0, normalizado
-                result_mant <= product[45:23];
-                biased_exp <= exp_sum;
-                inexact <= (product[22:0] != 23'b0);
+                result_mant <= s1_product[45:23];
+                biased_exp <= s1_exp_sum;
+                inexact <= (s1_product[22:0] != 23'b0);
             end
-            
-            // Verificar overflow y underflow
+
+            // Chequeo de rangos por modo
             if (mode_fp) begin
-                // Single precision
-                if (biased_exp >= SP_EXP_MAX) begin
-                    // Overflow
-                    result_exp <= SP_EXP_MAX;
-                    result_mant <= 23'b0; // Infinito
-                    overflow <= 1'b1;
-                end else if (biased_exp <= 0) begin
-                    // Underflow
+                if ($signed(biased_exp) <= 0) begin
                     result_exp <= 8'b0;
-                    result_mant <= 23'b0; // Cero
+                    result_mant <= 23'b0;
                     underflow <= 1'b1;
+                end else if (biased_exp >= SP_EXP_MAX) begin
+                    result_exp <= SP_EXP_MAX;
+                    result_mant <= 23'b0;
+                    overflow <= 1'b1;
                 end else begin
                     result_exp <= biased_exp[7:0];
-                    overflow <= 1'b0;
-                    underflow <= 1'b0;
                 end
             end else begin
-                // Half precision - convertir rango de exponente
                 hp_biased_exp <= biased_exp - SP_EXP_BIAS + HP_EXP_BIAS;
-                
-                if (hp_biased_exp >= HP_EXP_MAX) begin
-                    // Overflow en half precision
-                    result_exp <= HP_EXP_MAX - HP_EXP_BIAS + SP_EXP_BIAS;
-                    result_mant <= {13'b0, 10'b0}; // Infinito en formato extendido
-                    overflow <= 1'b1;
-                end else if (hp_biased_exp <= 0) begin
-                    // Underflow en half precision
+                if ($signed(hp_biased_exp) <= 0) begin
                     result_exp <= 8'b0;
-                    result_mant <= 23'b0; // Cero
+                    result_mant <= 23'b0;
                     underflow <= 1'b1;
+                end else if (hp_biased_exp >= HP_EXP_MAX) begin
+                    result_exp <= HP_EXP_MAX - HP_EXP_BIAS + SP_EXP_BIAS;
+                    result_mant <= 23'b0;
+                    overflow <= 1'b1;
                 end else begin
                     result_exp <= hp_biased_exp[7:0];
-                    overflow <= 1'b0;
-                    underflow <= 1'b0;
                 end
             end
         end
