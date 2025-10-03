@@ -55,6 +55,7 @@ module alu_testbench;
     // Neg
     localparam SP_NEG_ZERO       = 32'h80000000; // -0.0
     localparam SP_NEG_ONE    = 32'hBF800000; // -1.0
+    localparam SP_NEG_ONE_FIVE = 32'hBFC00000; // -1.5
     localparam SP_NEG_TWO    = 32'hC0000000; // -2.0
     localparam SP_NEG_THREE  = 32'hC0400000; // -3.0
     localparam SP_NEG_INF    = 32'hFF800000; // -Inf
@@ -138,6 +139,25 @@ module alu_testbench;
         // test_operation(SP_NEG_INF, SP_POS_INF, 3'b001, 1'b1, "SUB: -Inf - -Inf = NaN");
         // test_operation(SP_POS_TWO, SP_POS_HALF, 3'b001, 1'b1, "SUB: 2.0 - 0.5 = 1.5");
 
+        // Multiplicación
+        
+        test_operation(SP_POS_TWO, SP_POS_THREE, 3'b010, 1'b1, "MUL: 2.0 * 3.0 = 6.0"); // 0x40C00000
+        // test_operation(SP_NEG_TWO, SP_POS_THREE, 3'b010, 1'b1, "MUL: -2.0 * 3.0 = -6.0"); // 0xC0C00000
+        // test_operation(SP_POS_ONE_FIVE, SP_POS_ONE_FIVE, 3'b010, 1'b1, "MUL: 1.5* 1.5 = 2.25"); // 0x40100000
+        // test_operation(SP_POS_ONE_FIVE, SP_NEG_ONE_FIVE, 3'b010, 1'b1, "MUL: 1.5 * -1.5 = -2.25"); // 0xC0100000
+        // test_operation(SP_POS_NINETY_NINE, SP_POS_THREE, 3'b010, 1'b1, "MUL: 99 * 3.0 = 297"); // 0x43948000 falta redondear no es exacto nose
+
+
+        // División
+
+        // aun no salen dan XxX00000
+        // test_operation(SP_POS_TWO, SP_POS_ONE, 3'b011, 1'b1, "DIV: 2.0 / 1.0 = 2.0"); // 0x40000000
+        // test_operation(SP_POS_TWO, SP_POS_TWO, 3'b011, 1'b1, "DIV: 2.0 / 2.0 = 1.0"); // 0x3F800000
+        // test_operation(SP_POS_THREE, SP_POS_TWO, 3'b011, 1'b1, "DIV: 3.0 / 2.0 = 1.5"); // 0x3FC00000
+        // test_operation(SP_NEG_THREE, SP_POS_TWO, 3'b011, 1'b1, "DIV: -3.0 / 2.0 = -1.5"); // 0xBFC00000
+        // test_operation(SP_NEG_ONE_FIVE, SP_NEG_TWO, 3'b011, 1'b1, "DIV: 3 / -2.0 = -1.5"); // 0xBFC00000
+        // test_operation(SP_NEG_ONE_FIVE, SP_NEG_TWO, 3'b011, 1'b1, "DIV: 1.5 / -2.0 = -0.75"); // 0xBF400000
+        
 
         // $display("\n=== PRUEBAS EN HALF PRECISION (16 bits) ===");
 
