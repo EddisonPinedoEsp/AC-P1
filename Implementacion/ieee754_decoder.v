@@ -1,14 +1,14 @@
-// Decodificador IEEE-754 para single precision (32 bits) y half precision (16 bits)
 module ieee754_decoder(
     input mode_fp,              // 0=half precision, 1=single precision
-    input [31:0] fp_a,          // Operando A
-    input [31:0] fp_b,          // Operando B
+    input [31:0] fp_a,          // Op A
+    input [31:0] fp_b,          // Op B
+
     output wire sign_a,         // Signo de A
     output wire sign_b,         // Signo de B
-    output reg [7:0] exp_a,     // Exponente de A (extendido a 8 bits)
-    output reg [7:0] exp_b,     // Exponente de B (extendido a 8 bits)
-    output reg [22:0] mant_a,   // Mantisa de A (extendida a 23 bits)
-    output reg [22:0] mant_b,   // Mantisa de B (extendida a 23 bits)
+    output reg [7:0] exp_a,     // Exponente de A (8 bits)
+    output reg [7:0] exp_b,     // Exponente de B (8 bits)
+    output reg [22:0] mant_a,   // Mantisa de A (23 bits)
+    output reg [22:0] mant_b,   // Mantisa de B (23 bits)
     output wire is_nan_a,       // A es NaN
     output wire is_nan_b,       // B es NaN
     output wire is_inf_a,       // A es infinito
@@ -29,7 +29,7 @@ module ieee754_decoder(
     wire [7:0] sp_exp_a, sp_exp_b;
     wire [22:0] sp_mant_a, sp_mant_b;
     
-    assign sign_a = mode_fp ? fp_a[31] : fp_a[31]; // HP también usa bit 31 (16 bits superiores)
+    assign sign_a = mode_fp ? fp_a[31] : fp_a[31];
     assign sign_b = mode_fp ? fp_b[31] : fp_b[31];
     
     assign sp_exp_a = fp_a[30:23];

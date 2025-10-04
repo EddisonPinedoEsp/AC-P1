@@ -5,7 +5,7 @@ module alu(
     input [31:0] op_b,        // Operando B (IEEE-754, single o half)
     input [2:0] op_code,      // Código de operación: 000=ADD, 001=SUB, 010=MUL, 011=DIV
     input mode_fp,            // 0=half precision (16 bits), 1=single precision (32 bits)
-    input [1:0] round_mode,   // Modo de redondeo: 00=nearest even, 01=toward zero, 10=up, 11=down
+    input round_mode,         // Modo de redondeo: nearest
     input start,              // Inicia la operación
     output reg [31:0] result, // Resultado en formato IEEE-754
     output reg valid_out,     // Indica que el resultado está listo
@@ -66,7 +66,7 @@ module alu(
     reg [31:0] temp_a, temp_b;
     reg [2:0] current_op;
     reg current_mode;
-    reg [1:0] current_round_mode;
+    reg current_round_mode;
     
     // Decodificador IEEE-754
     ieee754_decoder decoder_inst (
@@ -89,7 +89,7 @@ module alu(
         .is_denorm_b(is_denorm_b)
     );
     
-    // Unidad de suma/resta
+    // SUM SUB
     wire add_overflow, add_underflow, add_inexact;
     wire add_result_sign;
     wire [7:0] add_result_exp;
@@ -115,7 +115,7 @@ module alu(
         .inexact(add_inexact)
     );
     
-    // Unidad de multiplicación
+    // MUL
     wire mul_overflow, mul_underflow, mul_inexact;
     wire mul_result_sign;
     wire [7:0] mul_result_exp;
@@ -140,7 +140,7 @@ module alu(
         .inexact(mul_inexact)
     );
     
-    // Unidad de división
+    // DIV
     wire div_overflow, div_underflow, div_inexact, div_ready;
     wire div_result_sign;
     wire [7:0] div_result_exp;
@@ -149,7 +149,7 @@ module alu(
     fp_divider divider_inst (
         .clk(clk),
         .rst(rst),
-        .start(start && (current_op == OP_DIV)),
+        .start((state == COMPUTE) && (current_op == OP_DIV)),
         .mode_fp(current_mode),
         .sign_a(sign_a),
         .sign_b(sign_b),
@@ -167,7 +167,7 @@ module alu(
         .ready(div_ready)
     );
     
-    // Multiplexor para seleccionar el resultado según la operación
+    // Mux: Seleccionar el resultado según la operación
     reg final_result_sign;
     reg [7:0] final_result_exp;
     reg [22:0] final_result_mant;
@@ -241,7 +241,6 @@ module alu(
                 end
                 
                 DECODE: begin
-                    // La decodificación se realiza combinacionalmente
                     state <= COMPUTE;
                 end
                 
@@ -333,11 +332,11 @@ module alu(
                         end
                         state <= DONE;
                     end else begin
-                        // Operaciones normales - continuar con cálculo
+                        // Operaciones normales
                         state <= NORMALIZE;
                     end
                 end
-                
+
                 NORMALIZE: begin
                     // Asignar flags según la operación
                     flags[4] <= 1'b0; // invalid operation (manejado en casos especiales)
@@ -351,14 +350,12 @@ module alu(
                         if (div_ready) begin
                             state <= ENCODE;
                         end
-                        // Mantener estado hasta que la división termine
                     end else begin
                         state <= ENCODE;
                     end
                 end
                 
                 ENCODE: begin
-                    // La codificación se realiza combinacionalmente
                     result <= encoded_result;
                     state <= DONE;
                 end

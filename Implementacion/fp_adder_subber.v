@@ -1,16 +1,15 @@
-// Módulo para suma y resta de números en punto flotante IEEE-754
 module fp_adder_subber(
     input clk,
     input rst,
     input mode_fp,              // 0=half precision, 1=single precision
-    input operation,            // 0=add, 1=subtract
+    input operation,            // 0=add, 1=sub
     input sign_a,
     input sign_b,
     input [7:0] exp_a,
     input [7:0] exp_b,
     input [22:0] mant_a,
     input [22:0] mant_b,
-    input [1:0] round_mode,     // 00=nearest even, 01=toward zero, 10=up, 11=down
+    input round_mode,     // nearest
     output reg result_sign,
     output reg [7:0] result_exp,
     output reg [22:0] result_mant,
@@ -65,14 +64,14 @@ module fp_adder_subber(
 
     // Función para contar ceros a la izquierda  
     function [4:0] count_leading_zeros;
-        input [26:0] value; // Ahora 27 bits
+        input [26:0] value;
         integer j;
         begin
             count_leading_zeros = 27;
             for (j = 26; j >= 0; j = j - 1) begin
                 if (value[j]) begin
                     count_leading_zeros = 26 - j;
-                    j = -1; // Salir del bucle
+                    j = -1;
                 end
             end
         end

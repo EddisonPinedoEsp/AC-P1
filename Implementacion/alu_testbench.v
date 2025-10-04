@@ -2,7 +2,6 @@
 
 module alu_testbench;
 
-    // Parámetros del testbench
     localparam CLK_PERIOD = 10; // 100 MHz
     
     // Señales del testbench
@@ -11,13 +10,12 @@ module alu_testbench;
     reg [31:0] op_a, op_b;
     reg [2:0] op_code;
     reg mode_fp;
-    reg [1:0] round_mode;
+    reg round_mode;
     reg start;
     wire [31:0] result;
     wire valid_out;
     wire [4:0] flags;
     
-    // Instancia del DUT (Device Under Test)
     alu dut (
         .clk(clk),
         .rst(rst),
@@ -41,32 +39,29 @@ module alu_testbench;
     // Valores de prueba IEEE-754
     // Single precision
     // Pos
-    localparam SP_POS_ZERO       = 32'h00000000; // +0.0
-    localparam SP_POS_ONE       = 32'h3F800000; // +1.0
-    localparam SP_POS_ONE_FIVE  = 32'h3FC00000; // +1.5
-    localparam SP_POS_TWO    = 32'h40000000; // +2.0
-    localparam SP_POS_THREE   = 32'h40400000; // +3.0
-    localparam SP_POS_HALF   = 32'h3F000000; // +0.5
-    localparam SP_POS_NINETY_NINE = 32'h42C7FAE1; // +99.99
+    localparam SP_POS_0       = 32'h00000000; // +0.0
+    localparam SP_POS_0_5   = 32'h3F000000; // +0.5
+    localparam SP_POS_1       = 32'h3F800000; // +1.0
+    localparam SP_POS_1_5  = 32'h3FC00000; // +1.5
+    localparam SP_POS_2    = 32'h40000000; // +2.0
+    localparam SP_POS_3   = 32'h40400000; // +3.0
+    localparam SP_POS_5    = 32'h40A00000; // +5.0
+    localparam SP_POS_30   = 32'h41F00000; // +30
+    localparam SP_POS_35   = 32'h420C0000; // +35
+    localparam SP_POS_99_99 = 32'h42C7FAE1; // +99.99
     localparam SP_POS_INF    = 32'h7F800000; // +Inf
     localparam SP_POS_MIN_DENORM = 32'h00000001; // +Denorm
     localparam SP_POS_MAX_DENORM = 32'h007FFFFF; // +Denorm
 
     // Neg
-    localparam SP_NEG_ZERO       = 32'h80000000; // -0.0
-    localparam SP_NEG_ONE    = 32'hBF800000; // -1.0
-    localparam SP_NEG_ONE_FIVE = 32'hBFC00000; // -1.5
-    localparam SP_NEG_TWO    = 32'hC0000000; // -2.0
-    localparam SP_NEG_THREE  = 32'hC0400000; // -3.0
+    localparam SP_NEG_0       = 32'h80000000; // -0.0
+    localparam SP_NEG_1    = 32'hBF800000; // -1.0
+    localparam SP_NEG_2    = 32'hC0000000; // -2.0
+    localparam SP_NEG_3  = 32'hC0400000; // -3.0
     localparam SP_NEG_INF    = 32'hFF800000; // -Inf
     localparam SP_NEG_MIN_DENORM = 32'h80000001; // -Denorm
-    // localparam SP_NEG_MAX_DENORM = 32'h807FFFFF; // -Denorm
+    localparam SP_NEG_MAX_DENORM = 32'h807FFFFF; // -Denorm
     
-    // localparam SP_POS_ZERO   = 32'h00000000; // +0.0
-    // localparam SP_NEG_ZERO   = 32'h80000000; // -0.0
-    // localparam SP_QNAN       = 32'h7FC00000; // Quiet NaN
-    
-
     // Tareas auxiliares
     task reset_system;
         begin
@@ -76,7 +71,7 @@ module alu_testbench;
             op_b = 32'b0;
             op_code = 3'b0;
             mode_fp = 1'b0;
-            round_mode = 2'b00;
+            round_mode = 1'b0;
             #(CLK_PERIOD * 2);
             rst = 0;
             #(CLK_PERIOD);
@@ -97,9 +92,7 @@ module alu_testbench;
         input [31:0] a, b;
         input [2:0] op;
         input mode;
-        input [63:0] test_name;
         begin
-            $display("\n=== Test: %s ===", test_name);
             $display("A: %h, B: %h, OP: %d, Mode: %s", a, b, op, mode ? "SP" : "HP");
             
             op_a = a;
@@ -126,42 +119,20 @@ module alu_testbench;
         
         $display("\n=== PRUEBAS EN SINGLE PRECISION (32 bits) ===");
         
-        // Pruebas de suma
-        // test_operation(SP_POS_NINETY_NINE, SP_POS_HALF, 3'b000, 1'b1, "ADD: 99.99 + 0.5 = 100.49");
-        // test_operation(SP_POS_INF, SP_POS_INF, 3'b000, 1'b1, "ADD: +Inf + +Inf = +Inf");
-        // test_operation(SP_POS_INF, SP_NEG_INF, 3'b000, 1'b1, "ADD: +Inf + -Inf = NaN");
-        test_operation(SP_POS_MIN_DENORM, SP_POS_MIN_DENORM, 3'b000, 1'b1, "ADD: +Inf + -Inf = NaN");
-        // test_operation(SP_POS_THREE, SP_POS_TWO, 3'b001, 1'b1, "SUB: 3.0 - 2.0 = 1.0");
-        // test_operation(SP_NEG_TWO, SP_POS_ONE, 3'b000, 1'b1, "SUB: 2.0 - 1.0 = 1.0");
-
+        // Suma
+        // test_operation(SP_POS_MAX_DENORM, SP_POS_MAX_DENORM, 3'b000, 1'b1);
+        
         // Resta
 
-        // test_operation(SP_NEG_INF, SP_POS_INF, 3'b001, 1'b1, "SUB: -Inf - -Inf = NaN");
-        // test_operation(SP_POS_TWO, SP_POS_HALF, 3'b001, 1'b1, "SUB: 2.0 - 0.5 = 1.5");
-
         // Multiplicación
-        
-        test_operation(SP_POS_TWO, SP_POS_THREE, 3'b010, 1'b1, "MUL: 2.0 * 3.0 = 6.0"); // 0x40C00000
-        // test_operation(SP_NEG_TWO, SP_POS_THREE, 3'b010, 1'b1, "MUL: -2.0 * 3.0 = -6.0"); // 0xC0C00000
-        // test_operation(SP_POS_ONE_FIVE, SP_POS_ONE_FIVE, 3'b010, 1'b1, "MUL: 1.5* 1.5 = 2.25"); // 0x40100000
-        // test_operation(SP_POS_ONE_FIVE, SP_NEG_ONE_FIVE, 3'b010, 1'b1, "MUL: 1.5 * -1.5 = -2.25"); // 0xC0100000
-        // test_operation(SP_POS_NINETY_NINE, SP_POS_THREE, 3'b010, 1'b1, "MUL: 99 * 3.0 = 297"); // 0x43948000 falta redondear no es exacto nose
-
 
         // División
+        test_operation(SP_POS_5, SP_POS_2, 3'b011, 1'b1);
 
-        // aun no salen dan XxX00000
-        // test_operation(SP_POS_TWO, SP_POS_ONE, 3'b011, 1'b1, "DIV: 2.0 / 1.0 = 2.0"); // 0x40000000
-        // test_operation(SP_POS_TWO, SP_POS_TWO, 3'b011, 1'b1, "DIV: 2.0 / 2.0 = 1.0"); // 0x3F800000
-        // test_operation(SP_POS_THREE, SP_POS_TWO, 3'b011, 1'b1, "DIV: 3.0 / 2.0 = 1.5"); // 0x3FC00000
-        // test_operation(SP_NEG_THREE, SP_POS_TWO, 3'b011, 1'b1, "DIV: -3.0 / 2.0 = -1.5"); // 0xBFC00000
-        // test_operation(SP_NEG_ONE_FIVE, SP_NEG_TWO, 3'b011, 1'b1, "DIV: 3 / -2.0 = -1.5"); // 0xBFC00000
-        // test_operation(SP_NEG_ONE_FIVE, SP_NEG_TWO, 3'b011, 1'b1, "DIV: 1.5 / -2.0 = -0.75"); // 0xBF400000
         
-
         // $display("\n=== PRUEBAS EN HALF PRECISION (16 bits) ===");
 
-        // Pruebas de suma
+        // Suma
         // test_operation(HP_POS_ONE, HP_POS_ONE, 3'b000, 1'b0, "ADD: 1.0 + 1.0 = 2.0");
 
         $display("\n=== Testbench completado ===");
@@ -172,12 +143,12 @@ module alu_testbench;
     // Monitor de señales
     initial begin
         $monitor("Time: %t, Start: %b, Valid: %b, Result: %h, Flags: %b", 
-                 $time, start, valid_out, result, flags);
+                $time, start, valid_out, result, flags);
     end
     
-    // Timeout de seguridad
+
     initial begin
-        #50000; // 50 µs timeout
+        #50000;
         $display("ERROR: Timeout reached!");
         $finish;
     end

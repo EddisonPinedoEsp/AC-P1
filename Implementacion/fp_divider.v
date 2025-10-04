@@ -1,4 +1,3 @@
-// Módulo para división de números en punto flotante IEEE-754
 module fp_divider(
     input clk,
     input rst,
@@ -10,7 +9,7 @@ module fp_divider(
     input [7:0] exp_b,          // Exponente del divisor
     input [22:0] mant_a,        // Mantisa del dividendo
     input [22:0] mant_b,        // Mantisa del divisor
-    input [1:0] round_mode,     // 00=nearest even, 01=toward zero, 10=up, 11=down
+    input round_mode,           // nearest
     output reg result_sign,
     output reg [7:0] result_exp,
     output reg [22:0] result_mant,
@@ -32,7 +31,8 @@ module fp_divider(
     localparam DIV_SETUP = 3'b001;
     localparam DIV_COMPUTE = 3'b010;
     localparam DIV_NORMALIZE = 3'b011;
-    localparam DIV_DONE = 3'b100;
+    localparam DIV_ROUND = 3'b100;
+    localparam DIV_DONE = 3'b101;
     
     // Contador para división iterativa
     reg [4:0] div_counter;
@@ -91,12 +91,12 @@ module fp_divider(
                         dividend <= {1'b1, mant_a};
                         divisor <= {1'b1, mant_b};
                         
-                        // Calcular diferencia de exponentes
+                        // Calcular diferencia de exponentes correctamente
                         exp_diff <= exp_a - exp_b + SP_EXP_BIAS;
                         
-                        // Inicializar división
+                        // Inicializar división - poner dividendo en la posición correcta
                         quotient <= 48'b0;
-                        remainder <= {1'b1, mant_a, 23'b0}; // Dividend extendido
+                        remainder <= {{1'b1, mant_a}, 24'b0}; // Dividendo en bits superiores para división
                         div_counter <= 5'd24; // 24 bits de precisión
                     end
                 end
@@ -106,14 +106,15 @@ module fp_divider(
                 end
                 
                 DIV_COMPUTE: begin
-                    // División SRT (Sweeney, Robertson, Tocher) simplificada
+                    // División restoring simple
                     if (div_counter > 0) begin
-                        remainder <= remainder << 1;
-                        quotient <= quotient << 1;
-                        
+                        // Comparar y substraer si es posible
                         if (remainder[47:24] >= divisor) begin
-                            remainder[47:24] <= remainder[47:24] - divisor;
-                            quotient[0] <= 1'b1;
+                            remainder <= (remainder - {divisor, 24'b0}) << 1;
+                            quotient <= (quotient << 1) | 1'b1;
+                        end else begin
+                            remainder <= remainder << 1;
+                            quotient <= quotient << 1;
                         end
                         
                         div_counter <= div_counter - 1;
@@ -123,89 +124,50 @@ module fp_divider(
                 end
                 
                 DIV_NORMALIZE: begin
-                    // Normalizar el resultado
-                    if (quotient[47]) begin
-                        // El cociente es >= 2.0, necesita shift a la derecha
-                        result_mant <= quotient[46:24];
-                        biased_exp <= exp_diff + 1;
-                        inexact <= (quotient[23:0] != 24'b0) || (remainder != 48'b0);
-                    end else if (quotient[46]) begin
-                        // El cociente está normalizado
-                        result_mant <= quotient[45:23];
+                    // Normalizar el resultado - el resultado está en quotient[23:0]
+                    if (quotient[23]) begin
+                        // El cociente está normalizado (1.xxx)
+                        result_mant <= quotient[22:0];
                         biased_exp <= exp_diff;
-                        inexact <= (quotient[22:0] != 23'b0) || (remainder != 48'b0);
+                        inexact <= (remainder != 48'b0);
+                    end else if (quotient[22]) begin
+                        // El cociente necesita shift left de 1
+                        result_mant <= {quotient[21:0], 1'b0};
+                        biased_exp <= exp_diff - 1;
+                        inexact <= (remainder != 48'b0);
+                    end else if (quotient[21]) begin
+                        // El cociente necesita shift left de 2
+                        result_mant <= {quotient[20:0], 2'b0};
+                        biased_exp <= exp_diff - 2;
+                        inexact <= (remainder != 48'b0);
                     end else begin
-                        // El cociente necesita normalización a la izquierda
-                        shift_amount <= count_quotient_leading_zeros(quotient);
-                        
-                        if (shift_amount <= biased_exp) begin
-                            // Normalización manual para evitar shift dinámico
-                            case (shift_amount)
-                                6'd0: begin
-                                    result_mant <= quotient[45:23];
-                                    inexact <= (quotient[22:0] != 23'b0) || (remainder != 48'b0);
-                                end
-                                6'd1: begin
-                                    result_mant <= quotient[44:22];
-                                    inexact <= (quotient[21:0] != 22'b0) || (remainder != 48'b0);
-                                end
-                                6'd2: begin
-                                    result_mant <= quotient[43:21];
-                                    inexact <= (quotient[20:0] != 21'b0) || (remainder != 48'b0);
-                                end
-                                6'd3: begin
-                                    result_mant <= quotient[42:20];
-                                    inexact <= (quotient[19:0] != 20'b0) || (remainder != 48'b0);
-                                end
-                                6'd4: begin
-                                    result_mant <= quotient[41:19];
-                                    inexact <= (quotient[18:0] != 19'b0) || (remainder != 48'b0);
-                                end
-                                6'd5: begin
-                                    result_mant <= quotient[40:18];
-                                    inexact <= (quotient[17:0] != 18'b0) || (remainder != 48'b0);
-                                end
-                                default: begin
-                                    result_mant <= 23'b0;
-                                    inexact <= 1'b1;
-                                end
-                            endcase
-                            biased_exp <= biased_exp - shift_amount;
-                        end else begin
-                            // Underflow
-                            result_mant <= 23'b0;
-                            biased_exp <= 9'b0;
-                            underflow <= 1'b1;
-                        end
+                        // Resultado muy pequeño - underflow
+                        result_mant <= 23'b0;
+                        biased_exp <= 9'b0;
+                        underflow <= 1'b1;
                     end
                     
-                    // Verificar overflow y underflow
+                    div_state <= DIV_ROUND;
+                end
+                
+                DIV_ROUND: begin
                     if (mode_fp) begin
                         // Single precision
-                        if (biased_exp >= SP_EXP_MAX) begin
-                            result_exp <= SP_EXP_MAX;
-                            result_mant <= 23'b0; // Infinito
-                            overflow <= 1'b1;
-                        end else if (biased_exp <= 0) begin
+                        if (biased_exp <= 0) begin
+                            // Underflow
                             result_exp <= 8'b0;
-                            result_mant <= 23'b0; // Cero
                             underflow <= 1'b1;
+                        end else if (biased_exp >= SP_EXP_MAX) begin
+                            // Overflow
+                            result_exp <= SP_EXP_MAX;
+                            overflow <= 1'b1;
                         end else begin
+                            // Caso normal
                             result_exp <= biased_exp[7:0];
                         end
                     end else begin
                         // Half precision
-                        if (biased_exp - SP_EXP_BIAS + HP_EXP_BIAS >= HP_EXP_MAX) begin
-                            result_exp <= HP_EXP_MAX - HP_EXP_BIAS + SP_EXP_BIAS;
-                            result_mant <= {13'b0, 10'b0};
-                            overflow <= 1'b1;
-                        end else if (biased_exp - SP_EXP_BIAS + HP_EXP_BIAS <= 0) begin
-                            result_exp <= 8'b0;
-                            result_mant <= 23'b0;
-                            underflow <= 1'b1;
-                        end else begin
-                            result_exp <= biased_exp - SP_EXP_BIAS + HP_EXP_BIAS;
-                        end
+                        result_exp <= biased_exp[7:0]; 
                     end
                     
                     div_state <= DIV_DONE;

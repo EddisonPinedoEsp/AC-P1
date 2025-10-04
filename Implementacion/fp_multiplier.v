@@ -1,4 +1,3 @@
-// Módulo para multiplicación de números en punto flotante IEEE-754
 module fp_multiplier(
     input clk,
     input rst,
@@ -9,7 +8,7 @@ module fp_multiplier(
     input [7:0] exp_b,
     input [22:0] mant_a,
     input [22:0] mant_b,
-    input [1:0] round_mode,     // 00=nearest even, 01=toward zero, 10=up, 11=down
+    input round_mode,           // nearest
     output reg result_sign,
     output reg [7:0] result_exp,
     output reg [22:0] result_mant,
