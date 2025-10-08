@@ -42,6 +42,8 @@ module alu_testbench;
     localparam SP_POS_0       = 32'h00000000; // +0.0
     localparam SP_POS_0_5   = 32'h3F000000; // +0.5
     localparam SP_POS_1       = 32'h3F800000; // +1.0
+    localparam SP_POS_1_2       = 32'h3F99999A; // +1.2
+    localparam SP_POS_1_3       = 32'h3FA66666; // +1.3
     localparam SP_POS_1_5  = 32'h3FC00000; // +1.5
     localparam SP_POS_2    = 32'h40000000; // +2.0
     localparam SP_POS_3   = 32'h40400000; // +3.0
@@ -51,17 +53,40 @@ module alu_testbench;
     localparam SP_POS_99_99 = 32'h42C7FAE1; // +99.99
     localparam SP_POS_INF    = 32'h7F800000; // +Inf
     localparam SP_POS_MIN_DENORM = 32'h00000001; // +Denorm
+    localparam SP_POS_MIN = 32'h007FFFFD; // +Min
     localparam SP_POS_MAX_DENORM = 32'h007FFFFF; // +Denorm
+    localparam SP_POS_MAX = 32'h7F7FFFFF; // Máximo valor representable en single precision
 
     // Neg
     localparam SP_NEG_0       = 32'h80000000; // -0.0
     localparam SP_NEG_1    = 32'hBF800000; // -1.0
+    localparam SP_NEG_1_3  = 32'hBFA66666; // -1.3
     localparam SP_NEG_2    = 32'hC0000000; // -2.0
     localparam SP_NEG_3  = 32'hC0400000; // -3.0
     localparam SP_NEG_INF    = 32'hFF800000; // -Inf
     localparam SP_NEG_MIN_DENORM = 32'h80000001; // -Denorm
     localparam SP_NEG_MAX_DENORM = 32'h807FFFFF; // -Denorm
-    
+
+
+//  Half precision
+
+localparam HP_POS_1       = 16'h3C00; // +1.0
+localparam HP_POS_2       = 16'h4000; // +2.0
+localparam HP_POS_2_5     = 16'h4100; // +2.5
+localparam HP_POS_3       = 16'h4200; // +3.0
+localparam HP_POS_4       = 16'h4400; // +4.0
+localparam HP_POS_5       = 16'h4500; // +5.0
+localparam HP_POS_INF    = 16'h7C00; // +Inf
+
+// Neg
+localparam HP_NEG_1       = 16'hBC00; // -1.0
+localparam HP_NEG_2       = 16'hC000; // -2.0
+localparam HP_NEG_3       = 16'hC200; // -3.0
+localparam HP_NEG_4       = 16'hC400; // -4.0
+localparam HP_NEG_5       = 16'hC500; // -5.0
+localparam HP_NEG_INF     = 16'hFC00; // -Inf
+
+// 
     // Tareas auxiliares
     task reset_system;
         begin
@@ -118,18 +143,31 @@ module alu_testbench;
         reset_system();
         
         $display("\n=== PRUEBAS EN SINGLE PRECISION (32 bits) ===");
+
+        // Single Precision = 1'b1
+        // Half Precision = 1'b0
         
         // Suma
-        // test_operation(SP_POS_MAX_DENORM, SP_POS_MAX_DENORM, 3'b000, 1'b1);
+        // $display("=== Pruebas de suma en half precision ===");
+        test_operation(HP_POS_2, HP_POS_1, 3'b000, 1'b0); // 2.0 + 1.0 = 3.0
+        test_operation(HP_POS_1, HP_POS_1, 3'b001, 1'b0); // 1.0 + 1.0 = 2.0
         
-        // Resta
+        // Resta  
+        // $display("=== Pruebas de resta en half precision ===");
+        // test_operation(HP_POS_5, HP_POS_2, 3'b001, 1'b0); // 5.0 - 2.0 = 3.0
 
         // Multiplicación
+        // $display("=== Pruebas de multiplicación en half precision ===");
+        // test_operation(HP_POS_2, HP_POS_1, 3'b010, 1'b0); // 2.0 * 3.0 = 6.0
+        // test_operation(HP_POS_2, HP_POS_3, 3'b010, 1'b0); // 2.0 * 3.0 = 6.0
+        // test_operation(HP_POS_2, HP_POS_4, 3'b010, 1'b0); // 2.0 * 3.0 = 6.0
 
-        // División
-        test_operation(SP_POS_5, SP_POS_2, 3'b011, 1'b1);
+        // División en Half Precision (usar valores HP que están en los 16 bits menos significativos)
+        // $display("=== Pruebas de división en Half Precision ===");
+        // test_operation(HP_POS_2, HP_POS_1, 3'b011, 1'b0); // 2.0 / 1.0 = 2.0
+        // test_operation(HP_POS_2, HP_POS_2, 3'b011, 1'b0); // 2.0 / 2.0 = 1.0
+        // test_operation(HP_NEG_5, HP_POS_2, 3'b011, 1'b0); // 5.0 / 2.0 = 2.5
 
-        
         // $display("\n=== PRUEBAS EN HALF PRECISION (16 bits) ===");
 
         // Suma

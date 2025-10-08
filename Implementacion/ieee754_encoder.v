@@ -44,8 +44,8 @@ module ieee754_encoder(
             // Convertir mantisa (tomar los 10 bits más significativos)
             hp_mant = mant[22:13];
             
-            // Ensamblar resultado en half precision en los 16 bits superiores
-            fp_result = {{sign, hp_exp, hp_mant}, 16'b0};
+            // Ensamblar resultado en half precision en los 16 bits menos significativos
+            fp_result = {16'b0, sign, hp_exp, hp_mant};
         end
     end
 

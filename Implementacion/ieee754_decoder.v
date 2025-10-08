@@ -29,22 +29,22 @@ module ieee754_decoder(
     wire [7:0] sp_exp_a, sp_exp_b;
     wire [22:0] sp_mant_a, sp_mant_b;
     
-    assign sign_a = mode_fp ? fp_a[31] : fp_a[31];
-    assign sign_b = mode_fp ? fp_b[31] : fp_b[31];
+    assign sign_a = mode_fp ? fp_a[31] : fp_a[15];  // Bit 15 para half precision
+    assign sign_b = mode_fp ? fp_b[31] : fp_b[15];
     
     assign sp_exp_a = fp_a[30:23];
     assign sp_exp_b = fp_b[30:23];
     assign sp_mant_a = fp_a[22:0];
     assign sp_mant_b = fp_b[22:0];
     
-    // Extracción de campos para half precision (en los 16 bits superiores)
+    // Extracción de campos para half precision (en los 16 bits menos significativos)
     wire [4:0] hp_exp_a, hp_exp_b;
     wire [9:0] hp_mant_a, hp_mant_b;
     
-    assign hp_exp_a = fp_a[30:26];  // Exponente en bits 30:26 de los 16 bits superiores
-    assign hp_exp_b = fp_b[30:26];
-    assign hp_mant_a = fp_a[25:16]; // Mantisa en bits 25:16 de los 16 bits superiores  
-    assign hp_mant_b = fp_b[25:16];
+    assign hp_exp_a = fp_a[14:10];  // Exponente en bits 14:10 de los 16 bits menos significativos
+    assign hp_exp_b = fp_b[14:10];
+    assign hp_mant_a = fp_a[9:0];   // Mantisa en bits 9:0 de los 16 bits menos significativos
+    assign hp_mant_b = fp_b[9:0];
     
     // Conversión de exponentes y mantisas según el modo
     always @(*) begin

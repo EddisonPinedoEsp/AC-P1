@@ -13,11 +13,11 @@ module alu(
 );
 
     // Parámetros para operaciones
-    localparam OP_ADD = 3'b000;
-    localparam OP_SUB = 3'b001;
-    localparam OP_MUL = 3'b010;
-    localparam OP_DIV = 3'b011;
-    
+    localparam OP_ADD = 3'b000;  // suma
+    localparam OP_SUB = 3'b001;  // resta
+    localparam OP_MUL = 3'b010;  // multiplicación
+    localparam OP_DIV = 3'b011;  // división
+
     // Parámetros para IEEE-754
     // Single precision (32 bits): 1 bit signo + 8 bits exponente + 23 bits mantisa
     localparam SP_SIGN_POS = 31;
@@ -67,6 +67,9 @@ module alu(
     reg [2:0] current_op;
     reg current_mode;
     reg current_round_mode;
+    
+    // Contador para sincronización del multiplicador (2 ciclos de latencia)
+    reg [1:0] mul_counter;
     
     // Decodificador IEEE-754
     ieee754_decoder decoder_inst (
@@ -226,6 +229,7 @@ module alu(
             result <= 32'b0;
             valid_out <= 1'b0;
             flags <= 5'b0;
+            mul_counter <= 2'b0;
         end else begin
             case (state)
                 IDLE: begin
@@ -251,7 +255,7 @@ module alu(
                         if (current_mode) // Single precision
                             result <= 32'h7FC00000; // Quiet NaN
                         else // Half precision
-                            result <= {16'h7E00, 16'h0}; // Quiet NaN en los 16 bits superiores
+                            result <= {16'h0, 16'h7E00}; // Quiet NaN en los 16 bits menos significativos
                         flags[4] <= 1'b1; // invalid operation
                         state <= DONE;
                     end else if (is_inf_a || is_inf_b) begin
@@ -263,7 +267,7 @@ module alu(
                                     if (current_mode)
                                         result <= 32'h7FC00000;
                                     else
-                                        result <= {16'h7E00, 16'h0};
+                                        result <= {16'h0, 16'h7E00};
                                     flags[4] <= 1'b1; // invalid operation
                                 end else begin
                                     // Resultado es infinito
@@ -279,14 +283,14 @@ module alu(
                                     if (current_mode)
                                         result <= 32'h7FC00000;
                                     else
-                                        result <= {16'h7E00, 16'h0};
+                                        result <= {16'h0, 16'h7E00};
                                     flags[4] <= 1'b1; // invalid operation
                                 end else begin
                                     // Inf * número = Inf con signo apropiado
                                     if (current_mode)
                                         result <= {sign_a ^ sign_b, 8'hFF, 23'b0};
                                     else
-                                        result <= {sign_a ^ sign_b, 5'h1F, 10'b0, 16'b0};
+                                        result <= {16'b0, sign_a ^ sign_b, 5'h1F, 10'b0};
                                 end
                             end
                             OP_DIV: begin
@@ -295,20 +299,20 @@ module alu(
                                     if (current_mode)
                                         result <= 32'h7FC00000;
                                     else
-                                        result <= {16'h7E00, 16'h0};
+                                        result <= {16'h0, 16'h7E00};
                                     flags[4] <= 1'b1; // invalid operation
                                 end else if (is_inf_a) begin
                                     // Inf / número = Inf
                                     if (current_mode)
                                         result <= {sign_a ^ sign_b, 8'hFF, 23'b0};
                                     else
-                                        result <= {sign_a ^ sign_b, 5'h1F, 10'b0, 16'b0};
+                                        result <= {16'b0, sign_a ^ sign_b, 5'h1F, 10'b0};
                                 end else begin
                                     // número / Inf = 0
                                     if (current_mode)
                                         result <= {sign_a ^ sign_b, 31'b0};
                                     else
-                                        result <= {sign_a ^ sign_b, 15'b0, 16'b0};
+                                        result <= {16'b0, sign_a ^ sign_b, 15'b0};
                                 end
                             end
                         endcase
@@ -320,38 +324,79 @@ module alu(
                             if (current_mode)
                                 result <= 32'h7FC00000;
                             else
-                                result <= {16'h7E00, 16'h0};
+                                result <= {16'h0, 16'h7E00};
                             flags[4] <= 1'b1; // invalid operation
                         end else begin
                             // número/0 = Inf
                             if (current_mode)
                                 result <= {sign_a ^ sign_b, 8'hFF, 23'b0};
                             else
-                                result <= {sign_a ^ sign_b, 5'h1F, 10'b0, 16'b0};
+                                result <= {16'b0, sign_a ^ sign_b, 5'h1F, 10'b0};
                             flags[3] <= 1'b1; // divide by zero
                         end
                         state <= DONE;
                     end else begin
                         // Operaciones normales
+                        if (current_op == OP_MUL) begin
+                            // Para multiplicación, inicializar contador (2 ciclos de latencia)
+                            mul_counter <= 2'd2;
+                        end
                         state <= NORMALIZE;
                     end
                 end
 
                 NORMALIZE: begin
-                    // Asignar flags según la operación
-                    flags[4] <= 1'b0; // invalid operation (manejado en casos especiales)
-                    flags[3] <= 1'b0; // divide by zero (manejado en casos especiales)
-                    flags[2] <= final_overflow;   // overflow
-                    flags[1] <= final_underflow;  // underflow
-                    flags[0] <= final_inexact;    // inexact
-                    
-                    // Para división, esperar a que termine
-                    if (current_op == OP_DIV) begin
-                        if (div_ready) begin
+                    // Verificar si hay overflow y generar infinito
+                    if (final_overflow) begin
+                        // Overflow: generar infinito con signo correcto
+                        if (current_mode) // Single precision
+                            result <= {final_result_sign, 8'hFF, 23'b0}; // +/-Inf
+                        else // Half precision
+                            result <= {16'b0, final_result_sign, 5'h1F, 10'b0}; // +/-Inf en HP
+                        flags[4] <= 1'b0; // invalid operation
+                        flags[3] <= 1'b0; // divide by zero
+                        flags[2] <= 1'b1; // overflow
+                        flags[1] <= 1'b0; // underflow
+                        flags[0] <= final_inexact; // inexact
+                        state <= DONE;
+                    end else if (final_underflow) begin
+                        // Underflow: generar cero con signo correcto
+                        if (current_mode)
+                            result <= {final_result_sign, 31'b0}; // +/-0 en SP
+                        else
+                            result <= {16'b0, final_result_sign, 15'b0}; // +/-0 en HP
+                        flags[4] <= 1'b0; // invalid operation
+                        flags[3] <= 1'b0; // divide by zero
+                        flags[2] <= 1'b0; // overflow
+                        flags[1] <= 1'b1; // underflow
+                        flags[0] <= final_inexact; // inexact
+                        state <= DONE;
+                    end else begin
+                        // Caso normal: usar el codificador
+                        // Asignar flags según la operación
+                        flags[4] <= 1'b0; // invalid operation (manejado en casos especiales)
+                        flags[3] <= 1'b0; // divide by zero (manejado en casos especiales)
+                        flags[2] <= final_overflow;   // overflow
+                        flags[1] <= final_underflow;  // underflow
+                        flags[0] <= final_inexact;    // inexact
+                        
+                        // Esperar según el tipo de operación
+                        if (current_op == OP_DIV) begin
+                            // Para división, esperar a que termine
+                            if (div_ready) begin
+                                state <= ENCODE;
+                            end
+                        end else if (current_op == OP_MUL) begin
+                            // Para multiplicación, esperar 2 ciclos
+                            if (mul_counter == 0) begin
+                                state <= ENCODE;
+                            end else begin
+                                mul_counter <= mul_counter - 1;
+                            end
+                        end else begin
+                            // ADD/SUB son combinacionales
                             state <= ENCODE;
                         end
-                    end else begin
-                        state <= ENCODE;
                     end
                 end
                 

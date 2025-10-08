@@ -21,8 +21,8 @@ module fp_multiplier(
     reg [23:0] mant_a_ext, mant_b_ext;  // Mantisas con bit implícito
     reg [47:0] product;                 // Producto de mantisas
     reg [8:0] exp_sum;                 // Suma de exponentes (9 bits para detectar overflow)
-    reg [8:0] biased_exp;              // Exponente ajustado
-    reg [8:0] hp_biased_exp;           // Exponente ajustado para half precision
+    reg signed [9:0] biased_exp;              // Exponente ajustado (signed, 10 bits para overflow detection)
+    reg signed [9:0] hp_biased_exp;           // Exponente ajustado para half precision (signed, 10 bits)
     
     // Parámetros
     localparam SP_EXP_BIAS = 127;
@@ -34,7 +34,7 @@ module fp_multiplier(
 
     // Registros de la Etapa 1
     reg [47:0] s1_product;
-    reg [8:0]  s1_exp_sum;
+    reg signed [9:0]  s1_exp_sum;
     reg        s1_sign;
 
     always @(posedge clk) begin
@@ -51,7 +51,7 @@ module fp_multiplier(
             mant_a_ext <= 24'b0;
             mant_b_ext <= 24'b0;
             s1_product <= 48'b0;
-            s1_exp_sum <= 9'b0;
+            s1_exp_sum <= 10'b0;
             s1_sign <= 1'b0;
         end else begin
             // ===== Etapa 1 =====
@@ -79,11 +79,12 @@ module fp_multiplier(
 
             // Chequeo de rangos por modo
             if (mode_fp) begin
-                if ($signed(biased_exp) <= 0) begin
+                if (biased_exp <= 0) begin
                     result_exp <= 8'b0;
                     result_mant <= 23'b0;
                     underflow <= 1'b1;
                 end else if (biased_exp >= SP_EXP_MAX) begin
+                    // Overflow: generar infinito (exponente = 255, mantisa = 0)
                     result_exp <= SP_EXP_MAX;
                     result_mant <= 23'b0;
                     overflow <= 1'b1;
@@ -92,16 +93,18 @@ module fp_multiplier(
                 end
             end else begin
                 hp_biased_exp <= biased_exp - SP_EXP_BIAS + HP_EXP_BIAS;
-                if ($signed(hp_biased_exp) <= 0) begin
+                if (hp_biased_exp <= 0) begin
                     result_exp <= 8'b0;
                     result_mant <= 23'b0;
                     underflow <= 1'b1;
                 end else if (hp_biased_exp >= HP_EXP_MAX) begin
-                    result_exp <= HP_EXP_MAX - HP_EXP_BIAS + SP_EXP_BIAS;
+                    // Overflow en half precision: generar infinito
+                    result_exp <= 8'hFF; // Usar valor de infinito en formato interno
                     result_mant <= 23'b0;
                     overflow <= 1'b1;
                 end else begin
-                    result_exp <= hp_biased_exp[7:0];
+                    // Convertir exponente de half precision de vuelta a formato interno
+                    result_exp <= hp_biased_exp - HP_EXP_BIAS + SP_EXP_BIAS;
                 end
             end
         end

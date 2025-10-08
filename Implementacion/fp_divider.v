@@ -166,8 +166,19 @@ module fp_divider(
                             result_exp <= biased_exp[7:0];
                         end
                     end else begin
-                        // Half precision
-                        result_exp <= biased_exp[7:0]; 
+                        // Half precision - convertir bias y rango
+                        if ((biased_exp - SP_EXP_BIAS + HP_EXP_BIAS) <= 0) begin
+                            // Underflow en half precision
+                            result_exp <= 8'b0;
+                            underflow <= 1'b1;
+                        end else if ((biased_exp - SP_EXP_BIAS + HP_EXP_BIAS) >= HP_EXP_MAX) begin
+                            // Overflow en half precision
+                            result_exp <= 8'hFF; // Marcar como infinito en formato interno
+                            overflow <= 1'b1;
+                        end else begin
+                            // Convertir de vuelta a formato interno (single precision bias)
+                            result_exp <= (biased_exp - SP_EXP_BIAS + HP_EXP_BIAS) - HP_EXP_BIAS + SP_EXP_BIAS;
+                        end
                     end
                     
                     div_state <= DIV_DONE;
