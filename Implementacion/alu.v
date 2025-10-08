@@ -335,6 +335,16 @@ module alu(
                             flags[3] <= 1'b1; // divide by zero
                         end
                         state <= DONE;
+                        
+                    end else if ((is_zero_a || is_zero_b) && current_op == OP_MUL) begin
+                        // Multiplicación por cero (número * 0 = 0)
+                        if (current_mode)
+                            result <= {sign_a ^ sign_b, 31'b0}; // +/- 0 en SP
+                        else
+                            result <= {16'b0, sign_a ^ sign_b, 15'b0}; // +/- 0 en HP
+                        flags <= 5'b0; // Ningún flag
+                        state <= DONE;
+
                     end else begin
                         // Operaciones normales
                         if (current_op == OP_MUL) begin
