@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 module ieee754_decoder(
     input mode_fp,              // 0=half precision, 1=single precision
     input [31:0] fp_a,          // Op A

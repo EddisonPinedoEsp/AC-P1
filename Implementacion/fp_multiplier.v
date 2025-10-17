@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 module fp_multiplier(
     input clk,
     input rst,
@@ -23,6 +24,20 @@ module fp_multiplier(
     reg [8:0] exp_sum;                 // Suma de exponentes (9 bits para detectar overflow)
     reg signed [9:0] biased_exp;              // Exponente ajustado (signed, 10 bits para overflow detection)
     reg signed [9:0] hp_biased_exp;           // Exponente ajustado para half precision (signed, 10 bits)
+    // Temporales para normalización/redondeo (declarados a nivel de módulo para Verilog-2001)
+    reg [22:0] mant_pre;
+    reg guard_bit, round_bit, sticky_bit;
+    reg [23:0] mant_rounded;
+    integer shift_amount;
+    reg [47:0] frac_ext, shifted;
+    reg [22:0] mpre;
+    reg gb, rb, sb;
+    reg [23:0] mround;
+    integer shift_amount_hp;
+    reg [47:0] frac_ext_hp, shifted_hp;
+    reg [9:0] half_pre;
+    reg gbh, rbh, sbh;
+    reg [10:0] half_round;
     
     // Parámetros
     localparam SP_EXP_BIAS = 127;
@@ -66,22 +81,56 @@ module fp_multiplier(
             overflow <= 1'b0;
             underflow <= 1'b0;
 
-            // Normalización del producto registrado
+            // Normalización del producto registrado con GRS y tie-to-even
             if (s1_product[47]) begin
-                result_mant <= s1_product[46:24];
+                mant_pre = s1_product[46:24];
+                guard_bit = s1_product[23];
+                round_bit = s1_product[22];
+                sticky_bit = (s1_product[21:0] != 22'b0);
                 biased_exp <= s1_exp_sum + 1;
-                inexact <= (s1_product[23:0] != 24'b0);
             end else begin
-                result_mant <= s1_product[45:23];
+                mant_pre = s1_product[45:23];
+                guard_bit = s1_product[22];
+                round_bit = s1_product[21];
+                sticky_bit = (s1_product[20:0] != 21'b0);
                 biased_exp <= s1_exp_sum;
-                inexact <= (s1_product[22:0] != 23'b0);
+            end
+            mant_rounded = {1'b0, mant_pre};
+            if (guard_bit && (round_bit | sticky_bit | mant_pre[0])) begin
+                mant_rounded = mant_rounded + 24'd1;
+            end
+            inexact <= guard_bit | round_bit | sticky_bit;
+            if (mant_rounded[23]) begin
+                result_mant <= 23'b0;
+                biased_exp <= biased_exp + 1;
+            end else begin
+                result_mant <= mant_rounded[22:0];
             end
 
-            // Chequeo de rangos por modo
+            // Chequeo de rangos por modo (subnormales y saturación)
             if (mode_fp) begin
                 if (biased_exp <= 0) begin
-                    result_exp <= 8'b0;
-                    result_mant <= 23'b0;
+                    // Generar subnormal en single: desplazar a la derecha (1 - biased_exp)
+                    shift_amount = (1 - biased_exp);
+                    frac_ext = {result_mant, 24'b0};
+                    if (shift_amount >= 48) begin
+                        result_exp <= 8'b0;
+                        result_mant <= 23'b0;
+                        inexact <= 1'b1;
+                    end else begin
+                        shifted = frac_ext >> (shift_amount); // ya incluye 24 bits para GRS
+                        mpre = shifted[47:25];
+                        gb = shifted[24];
+                        rb = shifted[23];
+                        sb = (shifted[22:0] != 23'b0) | inexact;
+                        mround = {1'b0, mpre};
+                        if (gb && (rb | sb | mpre[0])) begin
+                            mround = mround + 24'd1;
+                        end
+                        result_exp <= 8'b0;
+                        result_mant <= mround[22:0];
+                        inexact <= gb | rb | sb;
+                    end
                     underflow <= 1'b1;
                 end else if (biased_exp >= SP_EXP_MAX) begin
                     // Overflow: generar infinito (exponente = 255, mantisa = 0)
@@ -94,8 +143,8 @@ module fp_multiplier(
             end else begin
                 hp_biased_exp <= biased_exp - SP_EXP_BIAS + HP_EXP_BIAS;
                 if (hp_biased_exp <= 0) begin
-                    result_exp <= 8'b0;
-                    result_mant <= 23'b0;
+                    // Underflow en half (generará subnormal en encoder). Mantener exp interna >=1.
+                    result_exp <= (biased_exp <= 0) ? 8'd1 : biased_exp[7:0];
                     underflow <= 1'b1;
                 end else if (hp_biased_exp >= HP_EXP_MAX) begin
                     // Overflow en half precision: generar infinito
@@ -103,8 +152,8 @@ module fp_multiplier(
                     result_mant <= 23'b0;
                     overflow <= 1'b1;
                 end else begin
-                    // Convertir exponente de half precision de vuelta a formato interno
-                    result_exp <= hp_biased_exp - HP_EXP_BIAS + SP_EXP_BIAS;
+                    // Exponente interno normal
+                    result_exp <= biased_exp[7:0];
                 end
             end
         end
