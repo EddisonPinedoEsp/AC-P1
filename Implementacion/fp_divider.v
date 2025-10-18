@@ -1,4 +1,3 @@
-`timescale 1ns / 1ps
 module fp_divider(
     input clk,
     input rst,
@@ -41,29 +40,24 @@ module fp_divider(
     
     // Variables para normalización
     integer i;
-    reg [5:0] shift_amount_norm;
+    reg [5:0] shift_amount;
     
     // Parámetros
     localparam SP_EXP_BIAS = 127;
     localparam HP_EXP_BIAS = 15;
     localparam SP_EXP_MAX = 8'hFF;
     localparam HP_EXP_MAX = 5'h1F;
-    // Temporales para empaquetado subnormal/rounding (Verilog-2001: declarar arriba)
-    integer shift_amount;
-    reg [47:0] frac_ext, shifted;
-    reg [22:0] mpre;
-    reg gb, rb, sb;
-    reg [23:0] mround;
     
-    // Función sintetizable para leading zeros (sin break)
+    // Función para contar leading zeros en quotient[45:0]
     function [5:0] count_quotient_leading_zeros;
         input [47:0] value;
         integer j;
         begin
             count_quotient_leading_zeros = 46;
             for (j = 45; j >= 0; j = j - 1) begin
-                if (value[j] && count_quotient_leading_zeros == 46) begin
+                if (value[j]) begin
                     count_quotient_leading_zeros = 45 - j;
+                    j = -1; // Salir del bucle
                 end
             end
         end
@@ -130,23 +124,29 @@ module fp_divider(
                 end
                 
                 DIV_NORMALIZE: begin
-                    // Normalizar con GRS y tie-to-even; quotient tiene hasta 24 bits útiles
-                    // Declaraciones deben ir fuera de bloques en Verilog-2001, por lo que reutilizamos registros superiores
-                    
+                    // Normalizar el resultado - el resultado está en quotient[23:0]
                     if (quotient[23]) begin
+                        // El cociente está normalizado (1.xxx)
                         result_mant <= quotient[22:0];
-                        // Usar remainder para GRS -> inexact
-                        inexact <= (remainder != 48'b0);
                         biased_exp <= exp_diff;
+                        inexact <= (remainder != 48'b0);
                     end else if (quotient[22]) begin
+                        // El cociente necesita shift left de 1
                         result_mant <= {quotient[21:0], 1'b0};
-                        inexact <= (remainder != 48'b0) | quotient[0];
                         biased_exp <= exp_diff - 1;
-                    end else begin
+                        inexact <= (remainder != 48'b0);
+                    end else if (quotient[21]) begin
+                        // El cociente necesita shift left de 2
                         result_mant <= {quotient[20:0], 2'b0};
-                        inexact <= (remainder != 48'b0) | (quotient[21:0] == 21'b0);
                         biased_exp <= exp_diff - 2;
+                        inexact <= (remainder != 48'b0);
+                    end else begin
+                        // Resultado muy pequeño - underflow
+                        result_mant <= 23'b0;
+                        biased_exp <= 9'b0;
+                        underflow <= 1'b1;
                     end
+                    
                     div_state <= DIV_ROUND;
                 end
                 
@@ -154,27 +154,8 @@ module fp_divider(
                     if (mode_fp) begin
                         // Single precision
                         if (biased_exp <= 0) begin
-                            // Underflow -> subnormal si es posible
-                            shift_amount = (1 - biased_exp);
-                            frac_ext = {result_mant, 24'b0};
-                            if (shift_amount >= 48) begin
-                                result_exp <= 8'b0;
-                                result_mant <= 23'b0;
-                                inexact <= 1'b1;
-                            end else begin
-                                shifted = frac_ext >> (shift_amount);
-                                mpre = shifted[47:25];
-                                gb = shifted[24];
-                                rb = shifted[23];
-                                sb = (shifted[22:0] != 23'b0) | inexact;
-                                mround = {1'b0, mpre};
-                                if (gb && (rb | sb | mpre[0])) begin
-                                    mround = mround + 24'd1;
-                                end
-                                result_exp <= 8'b0;
-                                result_mant <= mround[22:0];
-                                inexact <= gb | rb | sb;
-                            end
+                            // Underflow
+                            result_exp <= 8'b0;
                             underflow <= 1'b1;
                         end else if (biased_exp >= SP_EXP_MAX) begin
                             // Overflow
@@ -187,8 +168,8 @@ module fp_divider(
                     end else begin
                         // Half precision - convertir bias y rango
                         if ((biased_exp - SP_EXP_BIAS + HP_EXP_BIAS) <= 0) begin
-                            // Underflow en half precision: dejar que encoder empaquete subnormal
-                            result_exp <= (biased_exp <= 0) ? 8'd1 : biased_exp[7:0];
+                            // Underflow en half precision
+                            result_exp <= 8'b0;
                             underflow <= 1'b1;
                         end else if ((biased_exp - SP_EXP_BIAS + HP_EXP_BIAS) >= HP_EXP_MAX) begin
                             // Overflow en half precision

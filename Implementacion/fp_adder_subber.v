@@ -1,4 +1,3 @@
-`timescale 1ns / 1ps
 module fp_adder_subber(
     input clk,
     input rst,
@@ -63,178 +62,77 @@ module fp_adder_subber(
                     (larger_extended - aligned_smaller_mant) :
                     (larger_extended + aligned_smaller_mant);
 
-    // Función sintetizable para contar ceros a la izquierda (sin "break")
+    // Función para contar ceros a la izquierda  
     function [4:0] count_leading_zeros;
         input [26:0] value;
         integer j;
+        reg found;
         begin
             count_leading_zeros = 27;
+            found = 0;
             for (j = 26; j >= 0; j = j - 1) begin
-                if (value[j] && count_leading_zeros == 27) begin
+                if (value[j] && !found) begin
                     count_leading_zeros = 26 - j;
+                    found = 1;
                 end
             end
-            if (count_leading_zeros == 27)
-                count_leading_zeros = 27; // todo cero
         end
     endfunction
     
     assign leading_zeros = count_leading_zeros(sum_result);
     
     // Lógica de normalización combinacional
-    // Variables temporales (deben declararse antes de cualquier sentencia en Verilog-2001)
-    reg [22:0] mant_pre;
-    reg guard_bit, round_bit, sticky_bit;
-    reg [23:0] mant_rounded; // 1 bit extra para detectar carry
-    integer deficit;
-    reg [49:0] ext; // espacio para sticky
-    reg [49:0] shifted;
-    reg [26:0] sr;
-    integer k;
-    reg [26:0] shifted_local;
-
     always @(*) begin
         // Valores por defecto
         result_sign = larger_sign;
         overflow = 1'b0;
         underflow = 1'b0;
         inexact = 1'b0;
-        result_exp = 8'b0;
-        result_mant = 23'b0;
         
         if (sum_result == 27'b0) begin
             // Resultado es cero
             result_exp = 8'b0;
             result_mant = 23'b0;
-            // Preservar cero con signo según operandos (no forzar +0)
-            // Si las magnitudes son iguales y se restan, mantener el signo del operando "mayor" (en empate, A)
-            result_sign = larger_sign;
+            result_sign = 1'b0; // +0
         end else if (sum_result[26]) begin
             // Bit 26 activo - overflow, necesita shift a la derecha  
             result_exp = larger_exp + 1;
-            mant_pre = sum_result[25:3];
-            guard_bit = sum_result[2];
-            round_bit = sum_result[1];
-            sticky_bit = |sum_result[0];
-            // Tie-to-even
-            mant_rounded = {1'b0, mant_pre};
-            if (guard_bit && (round_bit | sticky_bit | mant_pre[0])) begin
-                mant_rounded = mant_rounded + 24'd1;
-            end
-            // Si hay carry en redondeo, incrementar exponente y ajustar mantisa
-            if (mant_rounded[23]) begin
-                result_exp = result_exp + 1'b1;
-                result_mant = 23'b0;
-            end else begin
-                result_mant = mant_rounded[22:0];
-            end
-            inexact = guard_bit | round_bit | sticky_bit;
+            result_mant = sum_result[25:3]; // Tomar bits 25:3 para mantisa
+            inexact = (sum_result[2:0] != 3'b0);
         end else if (sum_result[25]) begin
             // Bit 25 activo - normalizado
             result_exp = larger_exp;
-            mant_pre = sum_result[24:2];
-            guard_bit = sum_result[1];
-            round_bit = sum_result[0];
-            sticky_bit = 1'b0;
-            mant_rounded = {1'b0, mant_pre};
-            if (guard_bit && (round_bit | sticky_bit | mant_pre[0])) begin
-                mant_rounded = mant_rounded + 24'd1;
-            end
-            if (mant_rounded[23]) begin
-                result_exp = result_exp + 1'b1;
-                result_mant = 23'b0;
-            end else begin
-                result_mant = mant_rounded[22:0];
-            end
-            inexact = guard_bit | round_bit | sticky_bit;
+            result_mant = sum_result[24:2];
+            inexact = (sum_result[1:0] != 2'b0);
         end else if (sum_result[24]) begin
             // Bit 24 activo - necesita shift left de 1
             result_exp = larger_exp - 1;
-            mant_pre = sum_result[23:1];
-            guard_bit = sum_result[0];
-            round_bit = 1'b0;
-            sticky_bit = 1'b0;
-            mant_rounded = {1'b0, mant_pre};
-            if (guard_bit && (round_bit | sticky_bit | mant_pre[0])) begin
-                mant_rounded = mant_rounded + 24'd1;
-            end
-            if (mant_rounded[23]) begin
-                result_exp = result_exp + 1'b1;
-                result_mant = 23'b0;
-            end else begin
-                result_mant = mant_rounded[22:0];
-            end
-            inexact = guard_bit | round_bit | sticky_bit;
+            result_mant = sum_result[23:1];
+            inexact = sum_result[0];
         end else begin
             // Necesita normalización a la izquierda
             if (leading_zeros > larger_exp) begin
                 // Underflow
-                // Generar subnormal en single/half: aquí sólo marcamos underflow y dejamos encoder/otros módulos manejar half.
-                // Convertimos a subnormal para single: desplazar la mantisa según déficit de exponente y aplicar GRS
-                // Nota: Para simplificar, si el desplazamiento requerido excede el rango, resultado es cero
-                underflow = 1'b1;
                 result_exp = 8'b0;
-                deficit = leading_zeros - larger_exp; // cuántos pasos de izquierda no se pueden reflejar en exp
-                // Construimos el valor (sum_result) como significando a desplazar a la derecha para crear subnormal
-                ext = {sum_result, 23'b0};
-                if (deficit >= 50) begin
-                    result_mant = 23'b0;
-                    inexact = 1'b1;
-                end else begin
-                    // Para obtener 23 bits finales, desplazamos a la derecha deficit+? y definimos GRS
-                    shifted = ext >> (deficit + 4); // +4 para dejar GRS suficientes
-                    mant_pre = shifted[49:27];
-                    guard_bit = shifted[26];
-                    round_bit = shifted[25];
-                    sticky_bit = |shifted[24:0];
-                    mant_rounded = {1'b0, mant_pre};
-                    if (guard_bit && (round_bit | sticky_bit | mant_pre[0])) begin
-                        mant_rounded = mant_rounded + 24'd1;
-                    end
-                    result_mant = mant_rounded[22:0];
-                    inexact = guard_bit | round_bit | sticky_bit;
-                end
+                result_mant = 23'b0;
+                underflow = 1'b1;
             end else begin
                 result_exp = larger_exp - leading_zeros;
-                // Seleccionar ventana para 23 bits y GRS basados en leading_zeros
-                // Tomamos la ventana [24 - leading_zeros : 2 - leading_zeros] como mant_pre
-                // y definimos GRS con los bits inferiores
-                // Calcular índices de forma segura
-                sr = sum_result;
-                // Construcción explícita de mant_pre y GRS
+                // Normalización manual
                 case (leading_zeros)
-                    5'd0: begin
-                        mant_pre = sr[24:2];
-                        guard_bit = sr[1];
-                        round_bit = sr[0];
-                        sticky_bit = 1'b0;
-                    end
-                    5'd1: begin
-                        mant_pre = sr[23:1];
-                        guard_bit = sr[0];
-                        round_bit = 1'b0;
-                        sticky_bit = 1'b0;
-                    end
-                    default: begin
-                        // Para shifts mayores, completamos con ceros y acumulamos sticky con lo que queda
-                        shifted_local = sr << leading_zeros;
-                        mant_pre = shifted_local[24:2];
-                        guard_bit = shifted_local[1];
-                        round_bit = shifted_local[0];
-                        sticky_bit = 1'b0; // ya están alineados sin pérdida adicional
-                    end
+                    5'd1: result_mant = sum_result[23:1];
+                    5'd2: result_mant = sum_result[22:0];
+                    5'd3: result_mant = {sum_result[21:0], 1'b0};
+                    5'd4: result_mant = {sum_result[20:0], 2'b0};
+                    5'd5: result_mant = {sum_result[19:0], 3'b0};
+                    5'd6: result_mant = {sum_result[18:0], 4'b0};
+                    5'd7: result_mant = {sum_result[17:0], 5'b0};
+                    5'd8: result_mant = {sum_result[16:0], 6'b0};
+                    5'd9: result_mant = {sum_result[15:0], 7'b0};
+                    5'd10: result_mant = {sum_result[14:0], 8'b0};
+                    5'd11: result_mant = {sum_result[13:0], 9'b0};
+                    default: result_mant = 23'b0;
                 endcase
-                mant_rounded = {1'b0, mant_pre};
-                if (guard_bit && (round_bit | sticky_bit | mant_pre[0])) begin
-                    mant_rounded = mant_rounded + 24'd1;
-                end
-                if (mant_rounded[23]) begin
-                    result_exp = result_exp + 1'b1;
-                    result_mant = 23'b0;
-                end else begin
-                    result_mant = mant_rounded[22:0];
-                end
-                inexact = guard_bit | round_bit | sticky_bit;
             end
         end
         

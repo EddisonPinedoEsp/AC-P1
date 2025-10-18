@@ -1,5 +1,3 @@
-`timescale 1ns / 1ps
-
 module top_basys3(
     input clk,
     input rst,
@@ -18,7 +16,7 @@ module top_basys3(
     localparam S6_RESULT_HIGH = 3'b110; // Mostrar bits [31:16] del resultado
     localparam S7_FLAGS = 3'b111;       // Mostrar flags
     
-    reg [2:0] state, next_state;
+    reg [2:0] state;
     
     // Registros para almacenar datos capturados
     reg [2:0] op_code_reg;
@@ -39,6 +37,11 @@ module top_basys3(
     reg btn_debounced;
     reg btn_edge;
     reg btn_prev;
+    
+    // Parámetro para configurar el tiempo de debounce
+    // Para síntesis: 999999 (10ms @ 100MHz)
+    // Para simulación: 9 (muy corto para pruebas rápidas)
+    parameter BTN_DEBOUNCE_CYCLES = 9;  // Cambiar a 999999 para hardware real
     
     // Instancia del ALU
     alu alu_inst (
@@ -69,12 +72,12 @@ module top_basys3(
             btn_sync_0 <= btn_next;
             btn_sync_1 <= btn_sync_0;
             
-            // Debounce con contador (aprox. 10ms a 100MHz)
+            // Debounce con contador (aprox. 10ms a 100MHz en hardware)
             if (btn_sync_1 == btn_debounced) begin
                 btn_counter <= 20'd0;
             end else begin
                 btn_counter <= btn_counter + 1;
-                if (btn_counter == 20'd999999) begin
+                if (btn_counter == BTN_DEBOUNCE_CYCLES) begin
                     btn_debounced <= btn_sync_1;
                 end
             end
@@ -93,152 +96,111 @@ module top_basys3(
     end
     
     // ====================
-    // Máquina de estados
+    // Máquina de estados (todo en un solo bloque síncrono)
     // ====================
     
-    // Registro de estado
     always @(posedge clk) begin
         if (rst) begin
             state <= S0_CONFIG;
-        end else begin
-            state <= next_state;
-        end
-    end
-    
-    // Lógica de transición de estados
-    always @(*) begin
-        next_state = state;
-        
-        case (state)
-            S0_CONFIG: begin
-                if (btn_edge) begin
-                    next_state = S1_NUM1_LOW;
-                end
-            end
-            
-            S1_NUM1_LOW: begin
-                if (btn_edge) begin
-                    // Si es half precision (mode_fp=0), pasar a num2
-                    // Si es single precision (mode_fp=1), necesitar más bits
-                    if (mode_fp_reg)
-                        next_state = S2_NUM1_HIGH;
-                    else
-                        next_state = S3_NUM2_LOW;
-                end
-            end
-            
-            S2_NUM1_HIGH: begin
-                if (btn_edge) begin
-                    next_state = S3_NUM2_LOW;
-                end
-            end
-            
-            S3_NUM2_LOW: begin
-                if (btn_edge) begin
-                    // Si es half precision, pasar directo a cálculo
-                    // Si es single precision, necesitar más bits
-                    if (mode_fp_reg)
-                        next_state = S4_NUM2_HIGH;
-                    else
-                        next_state = S5_RESULT_LOW; // Iniciar cálculo
-                end
-            end
-            
-            S4_NUM2_HIGH: begin
-                if (btn_edge) begin
-                    next_state = S5_RESULT_LOW; // Iniciar cálculo
-                end
-            end
-            
-            S5_RESULT_LOW: begin
-                if (btn_edge) begin
-                    // Si es half precision, ir directo a flags
-                    // Si es single precision, mostrar parte alta
-                    if (mode_fp_reg)
-                        next_state = S6_RESULT_HIGH;
-                    else
-                        next_state = S7_FLAGS;
-                end
-            end
-            
-            S6_RESULT_HIGH: begin
-                if (btn_edge) begin
-                    next_state = S7_FLAGS;
-                end
-            end
-            
-            S7_FLAGS: begin
-                if (btn_edge) begin
-                    next_state = S0_CONFIG; // Volver al inicio
-                end
-            end
-            
-            default: next_state = S0_CONFIG;
-        endcase
-    end
-    
-    // Lógica de captura de datos y control del ALU
-    always @(posedge clk) begin
-        if (rst) begin
             op_code_reg <= 3'b000;
             mode_fp_reg <= 1'b0;
             round_mode_reg <= 1'b0;
             op_a_reg <= 32'b0;
             op_b_reg <= 32'b0;
             alu_start <= 1'b0;
-        end else begin
-            // Control del start del ALU - SE MANTIENE HASTA QUE VALID_OUT ESTÉ ACTIVO
-            if ((state == S4_NUM2_HIGH || state == S3_NUM2_LOW) && btn_edge) begin
-                // Iniciar ALU cuando se confirma el último número
-                alu_start <= 1'b1;
-            end else if (alu_valid_out || state == S0_CONFIG) begin
-                alu_start <= 1'b0;
-            end
-            
-            // Captura de datos según el estado
-            // IMPORTANTE: Capturar ANTES de cambiar de estado
-            if (btn_edge) begin
-                case (state)
-                    S0_CONFIG: begin
-                        // switches[2:0] = op_code
-                        // switches[3] = mode_fp
-                        // switches[4] = round_mode
+        end else begin            
+            // Lógica de estados y captura de datos
+            case (state)
+                S0_CONFIG: begin
+                    if (btn_edge) begin
+                        // Capturar configuración
                         op_code_reg <= switches[2:0];
                         mode_fp_reg <= switches[3];
                         round_mode_reg <= switches[4];
+                        // Cambiar a siguiente estado
+                        state <= S1_NUM1_LOW;
                     end
-                    
-                    S1_NUM1_LOW: begin
+                end
+                
+                S1_NUM1_LOW: begin
+                    if (btn_edge) begin
+                        // Capturar datos
                         if (mode_fp_reg) begin
                             // Single precision: guardar bits bajos
                             op_a_reg[15:0] <= switches;
+                            state <= S2_NUM1_HIGH;
                         end else begin
                             // Half precision: número completo en 16 bits
                             op_a_reg <= {16'b0, switches};
+                            state <= S3_NUM2_LOW;
                         end
                     end
-                    
-                    S2_NUM1_HIGH: begin
+                end
+                
+                S2_NUM1_HIGH: begin
+                    if (btn_edge) begin
                         // Solo en single precision
                         op_a_reg[31:16] <= switches;
+                        state <= S3_NUM2_LOW;
                     end
-                    
-                    S3_NUM2_LOW: begin
+                end
+                
+                S3_NUM2_LOW: begin
+                    if (btn_edge) begin
+                        // Capturar datos
                         if (mode_fp_reg) begin
                             // Single precision: guardar bits bajos
                             op_b_reg[15:0] <= switches;
+                            state <= S4_NUM2_HIGH;
                         end else begin
                             // Half precision: número completo en 16 bits
                             op_b_reg <= {16'b0, switches};
+                            // Iniciar ALU para Half Precision
+                            alu_start <= 1'b1;
+                            state <= S5_RESULT_LOW;
                         end
                     end
-                    
-                    S4_NUM2_HIGH: begin
+                end
+                
+                S4_NUM2_HIGH: begin
+                    if (btn_edge) begin
                         // Solo en single precision
                         op_b_reg[31:16] <= switches;
+                        // Iniciar ALU para Single Precision
+                        alu_start <= 1'b1;
+                        state <= S5_RESULT_LOW;
                     end
-                endcase
-            end
+                end
+                
+                S5_RESULT_LOW: begin
+                    // NO desactivar start aquí, el ALU lo necesita para mantener valid_out
+                    
+                    if (btn_edge && alu_valid_out) begin
+                        // Desactivar start SOLO cuando avanzamos de estado
+                        alu_start <= 1'b0;
+                        
+                        // Solo avanzar si el resultado está listo
+                        if (mode_fp_reg)
+                            state <= S6_RESULT_HIGH;
+                        else
+                            state <= S7_FLAGS;
+                    end
+                end
+                
+                S6_RESULT_HIGH: begin
+                    if (btn_edge) begin
+                        state <= S7_FLAGS;
+                    end
+                end
+                
+                S7_FLAGS: begin
+                    if (btn_edge) begin
+                        state <= S0_CONFIG; // Volver al inicio
+                    end
+                end
+                
+                default: state <= S0_CONFIG;
+            endcase
         end
     end
     
@@ -246,45 +208,40 @@ module top_basys3(
     always @(*) begin
         case (state)
             S0_CONFIG: begin
-                // Mostrar configuración actual en los LEDs
-                leds = {11'b0, round_mode_reg, mode_fp_reg, op_code_reg};
+                // Mostrar estado y configuración
+                // LEDs[15:13] = estado (000)
+                // LEDs[4:0] = configuración
+                leds = {3'b000, 8'b0, round_mode_reg, mode_fp_reg, op_code_reg};
             end
             
             S1_NUM1_LOW: begin
-                // Mostrar lo que se está ingresando
                 leds = switches;
             end
             
             S2_NUM1_HIGH: begin
-                // Mostrar lo que se está ingresando
                 leds = switches;
             end
             
             S3_NUM2_LOW: begin
-                // Mostrar lo que se está ingresando
                 leds = switches;
             end
             
             S4_NUM2_HIGH: begin
-                // Mostrar lo que se está ingresando
                 leds = switches;
             end
             
             S5_RESULT_LOW: begin
-                // Mostrar bits bajos del resultado
                 if (alu_valid_out)
                     leds = alu_result[15:0];
                 else
-                    leds = 16'b0000000000000001; // Indicador de "calculando" (LED 0 encendido)
+                    leds = {3'b101, 13'b0}; 
             end
             
             S6_RESULT_HIGH: begin
-                // Mostrar bits altos del resultado
                 leds = alu_result[31:16];
             end
             
             S7_FLAGS: begin
-                // Mostrar flags en los LEDs inferiores
                 leds = {11'b0, alu_flags};
             end
             
@@ -293,5 +250,3 @@ module top_basys3(
     end
 
 endmodule
-
-

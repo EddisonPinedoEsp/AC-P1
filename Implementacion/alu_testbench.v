@@ -40,7 +40,6 @@ module alu_testbench;
     // Single precision
     // Pos
     localparam SP_POS_0       = 32'h00000000; // +0.0
-    localparam SP_POS_0_2      = 32'h3e4ccccd; // Aprox +0.2
     localparam SP_POS_0_5   = 32'h3F000000; // +0.5
     localparam SP_POS_1       = 32'h3F800000; // +1.0
     localparam SP_POS_1_2       = 32'h3F99999A; // +1.2
@@ -49,17 +48,14 @@ module alu_testbench;
     localparam SP_POS_2    = 32'h40000000; // +2.0
     localparam SP_POS_3   = 32'h40400000; // +3.0
     localparam SP_POS_5    = 32'h40A00000; // +5.0
-    localparam SP_POS_6    = 32'h40C00000; // +6.0
     localparam SP_POS_30   = 32'h41F00000; // +30
     localparam SP_POS_35   = 32'h420C0000; // +35
     localparam SP_POS_99_99 = 32'h42C7FAE1; // +99.99
     localparam SP_POS_INF    = 32'h7F800000; // +Inf
     localparam SP_POS_MIN_DENORM = 32'h00000001; // +Denorm
-    localparam SP_POS_MIN_NORM = 32'h00800000;
     localparam SP_POS_MIN = 32'h007FFFFD; // +Min
     localparam SP_POS_MAX_DENORM = 32'h007FFFFF; // +Denorm
     localparam SP_POS_MAX = 32'h7F7FFFFF; // Máximo valor representable en single precision
-
 
     // Neg
     localparam SP_NEG_0       = 32'h80000000; // -0.0
@@ -70,35 +66,25 @@ module alu_testbench;
     localparam SP_NEG_INF    = 32'hFF800000; // -Inf
     localparam SP_NEG_MIN_DENORM = 32'h80000001; // -Denorm
     localparam SP_NEG_MAX_DENORM = 32'h807FFFFF; // -Denorm
-    localparam SP_NEG_MAX      = 32'hFF7FFFFF;
 
 
 //  Half precision
 
-localparam HP_POS_0       = 16'h0000; // +0.0
 localparam HP_POS_1       = 16'h3C00; // +1.0
 localparam HP_POS_2       = 16'h4000; // +2.0
 localparam HP_POS_2_5     = 16'h4100; // +2.5
 localparam HP_POS_3       = 16'h4200; // +3.0
 localparam HP_POS_4       = 16'h4400; // +4.0
 localparam HP_POS_5       = 16'h4500; // +5.0
-localparam HP_POS_6       = 16'h4600; // +6.0
 localparam HP_POS_INF    = 16'h7C00; // +Inf
-localparam HP_POS_MAX      = 16'h7BFF; // El número normalizado más grande
-localparam HP_POS_MIN_NORM = 16'h0400; // El número normalizado positivo más pequeño
-localparam HP_POS_0_5      = 16'h3800; // 0.5
-localparam HP_POS_0_1_APPROX = 16'h2E66; // Aprox. 0.1
 
 // Neg
-localparam HP_NEG_0       = 16'h8000; // -0.0
 localparam HP_NEG_1       = 16'hBC00; // -1.0
 localparam HP_NEG_2       = 16'hC000; // -2.0
 localparam HP_NEG_3       = 16'hC200; // -3.0
 localparam HP_NEG_4       = 16'hC400; // -4.0
 localparam HP_NEG_5       = 16'hC500; // -5.0
 localparam HP_NEG_INF     = 16'hFC00; // -Inf
-localparam HP_NEG_MAX      = 16'hFBFF;// El número normalizado negativo más grande
-
 
 // 
     // Tareas auxiliares
@@ -155,91 +141,37 @@ localparam HP_NEG_MAX      = 16'hFBFF;// El número normalizado negativo más gr
         
         // Inicializar sistema
         reset_system();
+        
+        $display("\n=== PRUEBAS EN SINGLE PRECISION (32 bits) ===");
 
         // Single Precision = 1'b1
         // Half Precision = 1'b0
-    
-        $display("\n=== PRUEBAS EN SINGLE PRECISION (32 bits) ===");
-
-        // === PRUEBAS DE SUMA ===
-        $display("=== Pruebas de suma en single precision ===");
-        // test_operation(SP_POS_3, SP_POS_2, 3'b000, 1'b1); // 3.0 + 2.0 = 5.0
-        // test_operation(SP_POS_1, SP_POS_1, 3'b000, 1'b1); // 1.0 + 1.0 = 2.0
-        // test_operation(SP_POS_1, SP_POS_0_2, 3'b000, 1'b1); // 1.0 + 0.2 = 1.2 (inexact)
-        // test_operation(SP_POS_INF, SP_NEG_INF, 3'b000, 1'b1); // +Inf + (-Inf) = NaN (invalid)
-        // test_operation(SP_POS_MAX, SP_POS_MAX, 3'b000, 1'b1); // Max + Max = Inf (overflow)
-        // test_operation(SP_POS_0, SP_POS_0, 3'b000, 1'b1); // 0.0 + 0.0 = 0.0
-
-        // === PRUEBAS DE RESTA ===
-        $display("=== Pruebas de resta en single precision ===");
-        //test_operation(SP_POS_3, SP_POS_2, 3'b001, 1'b1); // 3.0 - 2.0 = 1.0
-        // test_operation(SP_POS_1_2, SP_POS_0_2, 3'b001, 1'b1); // 1.2 - 0.2 = 1.0 (inexact)
-        // test_operation(SP_POS_INF, SP_POS_INF, 3'b001, 1'b1); // +Inf - (+Inf) = NaN (invalid)
-        // test_operation(SP_POS_MAX, SP_NEG_MAX, 3'b001, 1'b1); // Max - (-Max) = Inf (overflow)
-        // test_operation(SP_POS_0, SP_POS_0, 3'b001, 1'b1); // 0.0 - 0.0 = 0.0
-
-        // === PRUEBAS DE MULTIPLICACIÓN ===
-        $display("=== Pruebas de multiplicación en single precision ===");
-        //test_operation(SP_POS_3, SP_POS_2, 3'b010, 1'b1); // 3.0 * 2.0 = 6.0
-        // test_operation(SP_POS_2, SP_POS_0_5, 3'b010, 1'b1); // 2.0 * 0.5 = 1.0
-        // test_operation(SP_POS_1_2, SP_POS_1_3, 3'b010, 1'b1); // 1.2 * 1.3 = 1.56 (inexact)
-        // test_operation(SP_POS_INF, SP_POS_0, 3'b010, 1'b1); // Inf * 0 = NaN (invalid)
-        // test_operation(SP_POS_MAX, SP_POS_2, 3'b010, 1'b1); // Max * 2 = Inf (overflow)
-        // test_operation(SP_POS_MIN_NORM, SP_POS_0_5, 3'b010, 1'b1); // Min_norm * 0.5 = underflow
-        // test_operation(SP_POS_0, SP_POS_0, 3'b010, 1'b1); // 0.0 * 0.0 = 0.0
-
-        // === PRUEBAS DE DIVISIÓN ===
-        $display("=== Pruebas de división en single precision ===");
-        // test_operation(SP_POS_6, SP_POS_2, 3'b011, 1'b1); // 6.0 / 2.0 = 3.0
-        // test_operation(SP_POS_5, SP_POS_2, 3'b011, 1'b1); // 5.0 / 2.0 = 2.5
-        // test_operation(SP_POS_1, SP_POS_3, 3'b011, 1'b1); // 1.0 / 3.0 = 0.333... (inexact)
-        // test_operation(SP_POS_0, SP_POS_0, 3'b011, 1'b1); // 0.0 / 0.0 = NaN (invalid)
-        // test_operation(SP_POS_MAX, SP_POS_0_5, 3'b011, 1'b1); // Max / 0.5 = Inf (overflow)
-        // test_operation(SP_POS_MIN_NORM, SP_POS_2, 3'b011, 1'b1); // Min_norm / 2 = underflow
-        // test_operation(SP_POS_1, SP_POS_0, 3'b011, 1'b1); // 1.0 / 0.0 = Inf (div by zero)
-
-        $display("\n=== PRUEBAS EN HALF PRECISION (16 bits) ===");
-
-        // === PRUEBAS DE SUMA ===
-        $display("=== Pruebas de suma en half precision ===");
-        // test_operation(HP_POS_1, HP_POS_1, 3'b000, 1'b0); // 1.0 + 1.0 = 2.0
-        // test_operation(HP_POS_2, HP_POS_1, 3'b000, 1'b0); // 2.0 + 1.0 = 3.0
-        // test_operation(HP_POS_1, HP_POS_0_1_APPROX, 3'b000, 1'b0); // 1.0 + 0.1 = 1.1 (inexact)
-        // test_operation(HP_NEG_INF, HP_POS_INF, 3'b000, 1'b0); // -Inf + Inf = NaN (invalid)
-        // test_operation(HP_POS_MAX, HP_POS_MAX, 3'b000, 1'b0); // Max + Max = Inf (overflow)
-        // test_operation(HP_POS_0, HP_POS_0, 3'b000, 1'b0); // 0.0 + 0.0 = 0.0
-
-        // === PRUEBAS DE RESTA ===
-        $display("=== Pruebas de resta en half precision ===");
+        
+        // Suma
+        // $display("=== Pruebas de suma en half precision ===");
+        // test_operation(HP_POS_1, HP_POS_1, 3'b000, 1'b0); // 2.0 + 1.0 = 3.0
+        // test_operation(HP_POS_1, HP_POS_1, 3'b001, 1'b0); // 1.0 + 1.0 = 2.0
+        
+        // Resta  
+        // $display("=== Pruebas de resta en half precision ===");
         // test_operation(HP_POS_5, HP_POS_2, 3'b001, 1'b0); // 5.0 - 2.0 = 3.0
-        // test_operation(HP_POS_3, HP_POS_1, 3'b001, 1'b0); // 3.0 - 1.0 = 2.0
-        // test_operation(HP_POS_1, HP_POS_0_1_APPROX, 3'b001, 1'b0); // 1.0 - 0.1 = 0.9 (inexact)
-        // test_operation(HP_NEG_INF, HP_NEG_INF, 3'b001, 1'b0); // -Inf - (-Inf) = NaN (invalid)
-        // test_operation(HP_POS_MAX, HP_NEG_MAX, 3'b001, 1'b0); // Max - (-Max) = Inf (overflow)
-        // test_operation(HP_POS_0, HP_POS_0, 3'b001, 1'b0); // 0.0 - 0.0 = 0.0
 
-        // === PRUEBAS DE MULTIPLICACIÓN ===
-        $display("=== Pruebas de multiplicación en half precision ===");
+        // Multiplicación
+        // $display("=== Pruebas de multiplicación en half precision ===");
+        // test_operation(HP_POS_2, HP_POS_1, 3'b010, 1'b0); // 2.0 * 3.0 = 6.0
         // test_operation(HP_POS_2, HP_POS_3, 3'b010, 1'b0); // 2.0 * 3.0 = 6.0
-        // test_operation(HP_POS_4, HP_POS_2, 3'b010, 1'b0); // 4.0 * 2.0 = 8.0
-        // test_operation(HP_POS_0_5, HP_POS_0_1_APPROX, 3'b010, 1'b0); // 0.5 * 0.1 = 0.05 (inexact)
-        // test_operation(HP_POS_INF, HP_POS_0, 3'b010, 1'b0); // Inf * 0 = NaN (invalid)
-        // test_operation(HP_POS_MAX, HP_POS_2, 3'b010, 1'b0); // Max * 2 = Inf (overflow)
-        // test_operation(HP_POS_MIN_NORM, HP_POS_0_5, 3'b010, 1'b0); // Min_norm * 0.5 = underflow
-        // test_operation(HP_POS_0, HP_POS_0, 3'b010, 1'b0); // 0.0 * 0.0 = 0.0
+        // test_operation(HP_POS_2, HP_POS_4, 3'b010, 1'b0); // 2.0 * 3.0 = 6.0
 
-        // === PRUEBAS DE DIVISIÓN ===
-        $display("=== Pruebas de división en half precision ===");
-        // test_operation(HP_POS_6, HP_POS_2, 3'b011, 1'b0); // 6.0 / 2.0 = 3.0
-        // test_operation(HP_POS_5, HP_POS_2, 3'b011, 1'b0); // 5.0 / 2.0 = 2.5
-        // test_operation(HP_POS_1, HP_POS_3, 3'b011, 1'b0); // 1.0 / 3.0 = 0.333... (inexact)
-        // test_operation(HP_POS_0, HP_NEG_0, 3'b011, 1'b0); // 0.0 / 0.0 = NaN (invalid)
-        // test_operation(HP_POS_MAX, HP_POS_0_5, 3'b011, 1'b0); // Max / 0.5 = Inf (overflow)
-        // test_operation(HP_POS_MIN_NORM, HP_POS_2, 3'b011, 1'b0); // Min_norm / 2 = underflow
-        // test_operation(HP_POS_1, HP_POS_0, 3'b011, 1'b0); // 1.0 / 0.0 = Inf (div by zero)
+        // División en Half Precision (usar valores HP que están en los 16 bits menos significativos)
+        // $display("=== Pruebas de división en Half Precision ===");
+        // test_operation(HP_POS_4, HP_POS_2, 3'b011, 1'b0); // 2.0 / 1.0 = 2.0
+        // test_operation(HP_POS_2, HP_POS_2, 3'b011, 1'b0); // 2.0 / 2.0 = 1.0
+        // test_operation(HP_NEG_5, HP_POS_2, 3'b011, 1'b0); // 5.0 / 2.0 = 2.5
 
+        // $display("\n=== PRUEBAS EN HALF PRECISION (16 bits) ===");
 
-
+        // Suma
+        // test_operation(HP_POS_ONE, HP_POS_ONE, 3'b000, 1'b0, "ADD: 1.0 + 1.0 = 2.0");
 
         $display("\n=== Testbench completado ===");
         #(CLK_PERIOD * 10);
