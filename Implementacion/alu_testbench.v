@@ -86,7 +86,6 @@ localparam HP_NEG_4       = 16'hC400; // -4.0
 localparam HP_NEG_5       = 16'hC500; // -5.0
 localparam HP_NEG_INF     = 16'hFC00; // -Inf
 
-// 
     // Tareas auxiliares
     task reset_system;
         begin

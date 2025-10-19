@@ -9,7 +9,7 @@ module fp_adder_subber(
     input [7:0] exp_b,
     input [22:0] mant_a,
     input [22:0] mant_b,
-    input round_mode,     // nearest
+    input round_mode,
     output reg result_sign,
     output reg [7:0] result_exp,
     output reg [22:0] result_mant,

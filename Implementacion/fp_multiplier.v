@@ -8,7 +8,7 @@ module fp_multiplier(
     input [7:0] exp_b,
     input [22:0] mant_a,
     input [22:0] mant_b,
-    input round_mode,           // nearest
+    input round_mode,
     output reg result_sign,
     output reg [7:0] result_exp,
     output reg [22:0] result_mant,
@@ -54,14 +54,14 @@ module fp_multiplier(
             s1_exp_sum <= 10'b0;
             s1_sign <= 1'b0;
         end else begin
-            // ===== Etapa 1 =====
+            // Etapa 1
             mant_a_ext <= {1'b1, mant_a};
             mant_b_ext <= {1'b1, mant_b};
             s1_product <= {1'b1, mant_a} * {1'b1, mant_b};
             s1_exp_sum <= exp_a + exp_b - SP_EXP_BIAS;
             s1_sign <= sign_a ^ sign_b;
 
-            // ===== Etapa 2 =====
+            // Etapa 2
             result_sign <= s1_sign;
             overflow <= 1'b0;
             underflow <= 1'b0;

@@ -38,11 +38,8 @@ module top_basys3(
     reg btn_edge;
     reg btn_prev;
     
-    // Parámetro para configurar el tiempo de debounce
     // Para síntesis: 999999 (10ms @ 100MHz)
-    // Para simulación: 9 (muy corto para pruebas rápidas)
-    parameter BTN_DEBOUNCE_CYCLES = 9;  // Cambiar a 999999 para hardware real
-    
+    parameter BTN_DEBOUNCE_CYCLES = 999999; 
     // Instancia del ALU
     alu alu_inst (
         .clk(clk),
@@ -58,9 +55,7 @@ module top_basys3(
         .flags(alu_flags)
     );
     
-    // ====================
     // Debounce del botón
-    // ====================
     always @(posedge clk) begin
         if (rst) begin
             btn_sync_0 <= 1'b0;
@@ -72,7 +67,7 @@ module top_basys3(
             btn_sync_0 <= btn_next;
             btn_sync_1 <= btn_sync_0;
             
-            // Debounce con contador (aprox. 10ms a 100MHz en hardware)
+            // Debounce con contador
             if (btn_sync_1 == btn_debounced) begin
                 btn_counter <= 20'd0;
             end else begin
@@ -95,10 +90,8 @@ module top_basys3(
         end
     end
     
-    // ====================
-    // Máquina de estados (todo en un solo bloque síncrono)
-    // ====================
-    
+    // Máquina de estados
+
     always @(posedge clk) begin
         if (rst) begin
             state <= S0_CONFIG;

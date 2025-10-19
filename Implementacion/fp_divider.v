@@ -9,7 +9,7 @@ module fp_divider(
     input [7:0] exp_b,          // Exponente del divisor
     input [22:0] mant_a,        // Mantisa del dividendo
     input [22:0] mant_b,        // Mantisa del divisor
-    input round_mode,           // nearest
+    input round_mode,
     output reg result_sign,
     output reg [7:0] result_exp,
     output reg [22:0] result_mant,

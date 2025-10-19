@@ -45,7 +45,7 @@ module ieee754_encoder(
             hp_mant = mant[22:13];
             
             // Ensamblar resultado en half precision en los 16 bits menos significativos
-            fp_result = {16'b0, sign, hp_exp, hp_mant};
+c            fp_result = {16'b0, sign, hp_exp, hp_mant};
         end
     end
 
