@@ -167,7 +167,7 @@ localparam HP_NEG_INF     = 16'hFC00; // -Inf
         $display("=== PRUEBAS EN HALF PRECISION (16 bits) ===");
         
         // Suma
-        // test_operation(SP_POS_5, SP_POS_5, 3'b000, 1'b0); // 4900
+        // test_operation(HP_POS_5, HP_POS_5, 3'b000, 1'b0); // 4900
         // test_operation(HP_POS_2, HP_POS_2, 3'b000, 1'b0); // 4400
         // test_operation(HP_POS_1, HP_NEG_1, 3'b000, 1'b0); // 0000
         
@@ -175,7 +175,7 @@ localparam HP_NEG_INF     = 16'hFC00; // -Inf
         // test_operation(HP_POS_3, HP_POS_2, 3'b001, 1'b0); // 3c00
 
         // Multiplicación
-        // test_operation(HP_POS_4, HP_POS_2, 3'b010, 1'b0);  // 4800
+        // test_operation(HP_POS_4, HP_POS_3, 3'b010, 1'b0);  // 4a00
         // test_operation(HP_POS_2, HP_POS_1, 3'b010, 1'b0); // 4000
         // test_operation(HP_POS_2, HP_POS_3, 3'b010, 1'b0); // 4600
 
