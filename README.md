@@ -1,7 +1,7 @@
 # Diseño e implementación de una ALU 
 
 ### Entregables:
-**1. Implementaciones**
+**1. Implementaciones**  
 En el file implementaciones se encuentra lo siguiente: 
 - Código fuente HDL.
 - Testbenches.
