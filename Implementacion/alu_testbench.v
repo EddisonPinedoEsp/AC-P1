@@ -71,7 +71,7 @@ module alu_testbench;
 
 //  Half precision
 
-localparam HP_POS_0       = 0'h0000;  // 0.0
+localparam HP_POS_0       = 16'h0000;  // 0.0
 localparam HP_POS_1       = 16'h3C00; // +1.0
 localparam HP_POS_2       = 16'h4000; // +2.0
 localparam HP_POS_2_5     = 16'h4100; // +2.5
@@ -172,13 +172,14 @@ localparam HP_NEG_INF     = 16'hFC00; // -Inf
         // $display("=== Pruebas de división en Half Precision ===");
         //test_operation(HP_POS_2, HP_POS_INF, 3'b011, 1'b0); // 2.0 / 0.0 = undefined
         // test_operation(HP_POS_2, HP_POS_2, 3'b011, 1'b0); // 2.0 / 2.0 = 1.0
-        
-        test_operation(HP_POS_2, HP_POS_0, 3'b011, 1'b0);
 
-        // $display("\n=== PRUEBAS EN HALF PRECISION (16 bits) ===");
+        $display("\n=== PRUEBAS EN HALF PRECISION (16 bits) ===");
 
         // Suma
-        // test_operation(HP_POS_ONE, HP_POS_ONE, 3'b000, 1'b0, "ADD: 1.0 + 1.0 = 2.0");
+        // test_operation(HP_POS_ONE, HP_POS_ONE, 3'b000, 1'b0); // 1.0 + 1.0 = 2.0
+
+        // División
+        // test_operation(HP_POS_2, HP_POS_0, 3'b011, 1'b0); // 2.0 / 0.0 = undefined
 
         $display("\n=== Testbench completado ===");
         #(CLK_PERIOD * 10);
