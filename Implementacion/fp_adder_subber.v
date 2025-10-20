@@ -9,7 +9,7 @@ module fp_adder_subber(
     input [7:0] exp_b,
     input [22:0] mant_a,
     input [22:0] mant_b,
-    input round_mode,     // nearest
+    input round_mode,
     output reg result_sign,
     output reg [7:0] result_exp,
     output reg [22:0] result_mant,
@@ -66,12 +66,14 @@ module fp_adder_subber(
     function [4:0] count_leading_zeros;
         input [26:0] value;
         integer j;
+        reg found;
         begin
             count_leading_zeros = 27;
+            found = 0;
             for (j = 26; j >= 0; j = j - 1) begin
-                if (value[j]) begin
+                if (value[j] && !found) begin
                     count_leading_zeros = 26 - j;
-                    j = -1;
+                    found = 1;
                 end
             end
         end
