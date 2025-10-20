@@ -47,6 +47,7 @@ module alu_testbench;
     localparam SP_POS_1_5  = 32'h3FC00000; // +1.5
     localparam SP_POS_2    = 32'h40000000; // +2.0
     localparam SP_POS_3   = 32'h40400000; // +3.0
+    localparam SP_POS_4 = 32'h40800000; // +4.0
     localparam SP_POS_5    = 32'h40A00000; // +5.0
     localparam SP_POS_30   = 32'h41F00000; // +30
     localparam SP_POS_35   = 32'h420C0000; // +35
@@ -142,44 +143,46 @@ localparam HP_NEG_INF     = 16'hFC00; // -Inf
         
         // Inicializar sistema
         reset_system();
-        
-        $display("\n=== PRUEBAS EN SINGLE PRECISION (32 bits) ===");
 
         // Single Precision = 1'b1
         // Half Precision = 1'b0
+        // Para revisar las conversiones: https://gregstoll.com/~gregstoll/floattohex/
+
+        $display("\n=== PRUEBAS EN SINGLE PRECISION (32 bits) ===");
+
+        // Suma
+        // test_operation(SP_POS_5, SP_POS_5, 3'b000, 1'b0); // 41200000
+
+        // Resta
+        // test_operation(SP_POS_5, SP_POS_5, 3'b001, 1'b1); // 00000000
+        // test_operation(SP_POS_INF, SP_POS_INF, 3'b001, 1'b1); // 7fc00000 -> invalid
+
+        // Multiplicacion
+        // test_operation(SP_POS_100, SP_POS_100, 3'b010, 1'b1); // 447a0000
+        // test_operation(SP_POS_4, SP_POS_3, 3'b010, 1'b1);  // 41400000
+
+        // Division
+        // test_operation(SP_POS_5, SP_POS_2, 3'b011, 1'b1); // 40200000
+        
+        $display("=== PRUEBAS EN HALF PRECISION (16 bits) ===");
         
         // Suma
-        // test_operation(SP_POS_2, SP_POS_2, 3'b000, 1'b1); // 2.0 + 2.0 = 4.0
-        // test_operation(SP_POS_100, SP_POS_100, 3'b010, 1'b1);
-        // test_operation(SP_POS_INF, SP_POS_INF, 3'b001, 1'b1); 
-        
-        
-        // $display("=== Pruebas de suma en half precision ===");
-        // test_operation(HP_POS_2, HP_POS_2, 3'b000, 1'b0); // 2.0 + 2.0 = 4.0
-        // test_operation(HP_POS_1, HP_POS_1, 3'b001, 1'b0); // 1.0 + 1.0 = 2.0
+        // test_operation(SP_POS_5, SP_POS_5, 3'b000, 1'b0); // 4900
+        // test_operation(HP_POS_2, HP_POS_2, 3'b000, 1'b0); // 4400
+        // test_operation(HP_POS_1, HP_NEG_1, 3'b000, 1'b0); // 0000
         
         // Resta  
-        // $display("=== Pruebas de resta en half precision ===");
-        // test_operation(HP_POS_3, HP_POS_2, 3'b001, 1'b0); // 3.0 - 2.0 = 1.0
+        // test_operation(HP_POS_3, HP_POS_2, 3'b001, 1'b0); // 3c00
 
         // Multiplicación
-        // $display("=== Pruebas de multiplicación en half precision ===");
-        // test_operation(HP_POS_2, HP_POS_1, 3'b010, 1'b0); // 2.0 * 3.0 = 6.0
-        // test_operation(HP_POS_2, HP_POS_3, 3'b010, 1'b0); // 2.0 * 3.0 = 6.0
-        // test_operation(HP_POS_2, HP_POS_4, 3'b010, 1'b0); // 2.0 * 3.0 = 6.0
+        // test_operation(HP_POS_4, HP_POS_2, 3'b010, 1'b0);  // 4800
+        // test_operation(HP_POS_2, HP_POS_1, 3'b010, 1'b0); // 4000
+        // test_operation(HP_POS_2, HP_POS_3, 3'b010, 1'b0); // 4600
 
-        // División en Half Precision (usar valores HP que están en los 16 bits menos significativos)
-        // $display("=== Pruebas de división en Half Precision ===");
-        //test_operation(HP_POS_2, HP_POS_INF, 3'b011, 1'b0); // 2.0 / 0.0 = undefined
-        // test_operation(HP_POS_2, HP_POS_2, 3'b011, 1'b0); // 2.0 / 2.0 = 1.0
-
-        $display("\n=== PRUEBAS EN HALF PRECISION (16 bits) ===");
-
-        // Suma
-        // test_operation(HP_POS_ONE, HP_POS_ONE, 3'b000, 1'b0); // 1.0 + 1.0 = 2.0
-
-        // División
-        // test_operation(HP_POS_2, HP_POS_0, 3'b011, 1'b0); // 2.0 / 0.0 = undefined
+        // Division
+        // test_operation(HP_POS_5, HP_POS_2, 3'b011, 1'b0);  // 4100
+        // test_operation(HP_POS_2, HP_POS_INF, 3'b011, 1'b0); // 0000
+        // test_operation(HP_POS_2, HP_POS_2, 3'b011, 1'b0); // 3c00
 
         $display("\n=== Testbench completado ===");
         #(CLK_PERIOD * 10);
