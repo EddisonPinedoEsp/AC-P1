@@ -51,6 +51,7 @@ module alu_testbench;
     localparam SP_POS_30   = 32'h41F00000; // +30
     localparam SP_POS_35   = 32'h420C0000; // +35
     localparam SP_POS_99_99 = 32'h42C7FAE1; // +99.99
+    localparam SP_POS_100 = 32'h42C80000; // +100.00
     localparam SP_POS_INF    = 32'h7F800000; // +Inf
     localparam SP_POS_MIN_DENORM = 32'h00000001; // +Denorm
     localparam SP_POS_MIN = 32'h007FFFFD; // +Min
@@ -70,6 +71,7 @@ module alu_testbench;
 
 //  Half precision
 
+localparam HP_POS_0       = 0'h0000;  // 0.0
 localparam HP_POS_1       = 16'h3C00; // +1.0
 localparam HP_POS_2       = 16'h4000; // +2.0
 localparam HP_POS_2_5     = 16'h4100; // +2.5
@@ -147,13 +149,18 @@ localparam HP_NEG_INF     = 16'hFC00; // -Inf
         // Half Precision = 1'b0
         
         // Suma
+        // test_operation(SP_POS_2, SP_POS_2, 3'b000, 1'b1); // 2.0 + 2.0 = 4.0
+        // test_operation(SP_POS_100, SP_POS_100, 3'b010, 1'b1);
+        // test_operation(SP_POS_INF, SP_POS_INF, 3'b001, 1'b1); 
+        
+        
         // $display("=== Pruebas de suma en half precision ===");
-        // test_operation(HP_POS_1, HP_POS_1, 3'b000, 1'b0); // 2.0 + 1.0 = 3.0
+        // test_operation(HP_POS_2, HP_POS_2, 3'b000, 1'b0); // 2.0 + 2.0 = 4.0
         // test_operation(HP_POS_1, HP_POS_1, 3'b001, 1'b0); // 1.0 + 1.0 = 2.0
         
         // Resta  
         // $display("=== Pruebas de resta en half precision ===");
-        // test_operation(HP_POS_5, HP_POS_2, 3'b001, 1'b0); // 5.0 - 2.0 = 3.0
+        // test_operation(HP_POS_3, HP_POS_2, 3'b001, 1'b0); // 3.0 - 2.0 = 1.0
 
         // Multiplicación
         // $display("=== Pruebas de multiplicación en half precision ===");
@@ -163,9 +170,10 @@ localparam HP_NEG_INF     = 16'hFC00; // -Inf
 
         // División en Half Precision (usar valores HP que están en los 16 bits menos significativos)
         // $display("=== Pruebas de división en Half Precision ===");
-        // test_operation(HP_POS_4, HP_POS_2, 3'b011, 1'b0); // 2.0 / 1.0 = 2.0
+        //test_operation(HP_POS_2, HP_POS_INF, 3'b011, 1'b0); // 2.0 / 0.0 = undefined
         // test_operation(HP_POS_2, HP_POS_2, 3'b011, 1'b0); // 2.0 / 2.0 = 1.0
-        // test_operation(HP_NEG_5, HP_POS_2, 3'b011, 1'b0); // 5.0 / 2.0 = 2.5
+        
+        test_operation(HP_POS_2, HP_POS_0, 3'b011, 1'b0);
 
         // $display("\n=== PRUEBAS EN HALF PRECISION (16 bits) ===");
 
